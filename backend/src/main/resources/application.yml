@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mediflowiq
+
+  # ─────────────────────────────────────────────
+  # H2 In-Memory Database (Phase 1 — Dev Only)
+  # ─────────────────────────────────────────────
+  datasource:
+    url: jdbc:h2:mem:mediflowiq;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL (Phase 2+ — Uncomment below and
+  # comment out the H2 block above to switch)
+  # ─────────────────────────────────────────────
+  # datasource:
+  #   url: jdbc:postgresql://localhost:5432/mediflowiq
+  #   username: postgres
+  #   password: your_password
+  #   driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # auto creates schema on start (use 'validate' in prod)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+        # For PostgreSQL Phase 2: org.hibernate.dialect.PostgreSQLDialect
+
+logging:
+  level:
+    com.mediflowiq: DEBUG
+    org.springframework.web.socket: INFO
