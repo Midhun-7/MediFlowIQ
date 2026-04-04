@@ -6,19 +6,14 @@ interface Props {
   onRegistered: () => void;
 }
 
-const PRIORITIES: { value: Priority; label: string; desc: string; color: string }[] = [
-  { value: 'EMERGENCY', label: '🔴 Emergency', desc: 'Life-threatening / critical', color: 'border-red-500/50 bg-red-500/10 text-red-300' },
-  { value: 'HIGH_RISK', label: '🟠 High Risk', desc: 'Urgent but stable', color: 'border-orange-500/50 bg-orange-500/10 text-orange-300' },
-  { value: 'NORMAL',    label: '🟢 Normal',    desc: 'Standard visit', color: 'border-green-500/50 bg-green-500/10 text-green-300' },
+const PRIORITIES: { value: Priority; label: string; desc: string; accentColor: string; bg: string; border: string }[] = [
+  { value: 'EMERGENCY', label: '🔴 Emergency', desc: 'Life-threatening / critical', accentColor: '#b91c1c', bg: '#fef2f2', border: '#fca5a5' },
+  { value: 'HIGH_RISK', label: '🟠 High Risk', desc: 'Urgent but stable',          accentColor: '#c2410c', bg: '#fff7ed', border: '#fdba74' },
+  { value: 'NORMAL',    label: '🟢 Normal',    desc: 'Standard visit',              accentColor: '#15803d', bg: '#f0fdf4', border: '#86efac' },
 ];
 
 export default function PatientRegistrationForm({ onRegistered }: Props) {
-  const [form, setForm] = useState<RegisterPatientRequest>({
-    name: '',
-    age: 0,
-    priority: 'NORMAL',
-    symptoms: '',
-  });
+  const [form, setForm] = useState<RegisterPatientRequest>({ name: '', age: 0, priority: 'NORMAL', symptoms: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -36,9 +31,10 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
     setLoading(true);
     try {
       const result = await registerPatient(form);
-      setSuccess(`✅ Patient registered! Token: ${result.token} · Position #${result.position}`);
+      setSuccess(`Patient registered! Token: ${result.token} · Position #${result.position}`);
       setForm({ name: '', age: 0, priority: 'NORMAL', symptoms: '' });
       onRegistered();
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to register patient. Is the backend running?');
     } finally {
@@ -47,20 +43,32 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
   };
 
   return (
-    <div className="glass-card p-6">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-9 h-9 rounded-lg bg-sky-500/15 flex items-center justify-center text-lg">🏥</div>
+    <div className="card" style={{ padding: '1.25rem' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <div style={{
+          width: '2.25rem',
+          height: '2.25rem',
+          borderRadius: '8px',
+          backgroundColor: '#e0f2fe',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '1.1rem',
+          flexShrink: 0,
+        }}>🏥</div>
         <div>
-          <h2 className="text-base font-semibold text-white">Register Patient</h2>
-          <p className="text-xs text-slate-400">Add a new patient to the queue</p>
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text)', margin: 0 }}>Register Patient</h2>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Add patient to queue</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
         {/* Name */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">
-            Patient Name <span className="text-red-400">*</span>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+            Patient Name <span style={{ color: '#dc2626' }}>*</span>
           </label>
           <input
             className="input"
@@ -74,8 +82,8 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
 
         {/* Age */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">
-            Age <span className="text-red-400">*</span>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+            Age <span style={{ color: '#dc2626' }}>*</span>
           </label>
           <input
             className="input"
@@ -91,18 +99,24 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
 
         {/* Priority */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-2">
-            Priority <span className="text-red-400">*</span>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+            Priority <span style={{ color: '#dc2626' }}>*</span>
           </label>
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {PRIORITIES.map(p => (
               <label
                 key={p.value}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                  form.priority === p.value
-                    ? p.color + ' border-opacity-100'
-                    : 'border-white/5 bg-white/2 hover:bg-white/5'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '8px',
+                  border: `1px solid ${form.priority === p.value ? p.border : 'var(--border)'}`,
+                  backgroundColor: form.priority === p.value ? p.bg : 'var(--surface-2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
               >
                 <input
                   type="radio"
@@ -110,18 +124,27 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
                   value={p.value}
                   checked={form.priority === p.value}
                   onChange={() => setForm(f => ({ ...f, priority: p.value }))}
-                  className="hidden"
+                  style={{ display: 'none' }}
                 />
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  form.priority === p.value ? 'border-current' : 'border-slate-600'
-                }`}>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '50%',
+                  border: `2px solid ${form.priority === p.value ? p.accentColor : 'var(--border)'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
                   {form.priority === p.value && (
-                    <div className="w-2 h-2 rounded-full bg-current" />
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: p.accentColor }} />
                   )}
                 </div>
                 <div>
-                  <div className="text-sm font-medium">{p.label}</div>
-                  <div className="text-xs text-slate-400">{p.desc}</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: form.priority === p.value ? p.accentColor : 'var(--text)' }}>
+                    {p.label}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{p.desc}</div>
                 </div>
               </label>
             ))}
@@ -130,12 +153,13 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
 
         {/* Symptoms */}
         <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1.5">
-            Symptoms <span className="text-slate-500">(optional)</span>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
+            Symptoms <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span>
           </label>
           <textarea
-            className="input resize-none"
+            className="input"
             rows={3}
+            style={{ resize: 'none' }}
             placeholder="Brief description of symptoms..."
             value={form.symptoms}
             onChange={e => setForm(f => ({ ...f, symptoms: e.target.value }))}
@@ -144,20 +168,42 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
 
         {/* Feedback */}
         {error && (
-          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div style={{
+            padding: '0.65rem 0.85rem',
+            borderRadius: '8px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fca5a5',
+            color: '#b91c1c',
+            fontSize: '0.82rem',
+          }}>
             {error}
           </div>
         )}
         {success && (
-          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm animate-fade-in">
-            {success}
+          <div className="animate-fade-in" style={{
+            padding: '0.65rem 0.85rem',
+            borderRadius: '8px',
+            backgroundColor: '#f0fdf4',
+            border: '1px solid #86efac',
+            color: '#15803d',
+            fontSize: '0.82rem',
+          }}>
+            ✅ {success}
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary w-full justify-center" disabled={loading}>
+        <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center', width: '100%' }} disabled={loading}>
           {loading ? (
             <>
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span style={{
+                width: '1rem',
+                height: '1rem',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTopColor: 'white',
+                borderRadius: '50%',
+                display: 'inline-block',
+                animation: 'spin 0.6s linear infinite',
+              }} />
               Registering...
             </>
           ) : (
@@ -165,6 +211,10 @@ export default function PatientRegistrationForm({ onRegistered }: Props) {
           )}
         </button>
       </form>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
