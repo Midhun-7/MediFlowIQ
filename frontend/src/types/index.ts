@@ -1,5 +1,6 @@
 export type Priority = 'EMERGENCY' | 'HIGH_RISK' | 'NORMAL';
 export type PatientStatus = 'WAITING' | 'IN_PROGRESS' | 'DONE';
+export type AmbulanceStatus = 'AVAILABLE' | 'DISPATCHED' | 'ON_SCENE' | 'RETURNING';
 
 export interface QueueEntry {
   id: number;
@@ -26,4 +27,16 @@ export interface QueueStats {
   totalWaiting: number;
   emergencies: number;
   avgWaitMinutes: number;
+}
+
+export interface Ambulance {
+  id: number;
+  callSign: string;
+  driverName: string;
+  status: AmbulanceStatus;
+  lat: number;
+  lng: number;
+  targetLat: number;
+  targetLng: number;
+  etaMinutes: number;
 }

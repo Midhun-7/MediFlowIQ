@@ -6,7 +6,7 @@ spring:
     name: mediflowiq
 
   # ─────────────────────────────────────────────
-  # H2 In-Memory Database (Phase 1 — Dev Only)
+  # H2 In-Memory Database (Phase 1 & 2 — Dev Only)
   # ─────────────────────────────────────────────
   datasource:
     url: jdbc:h2:mem:mediflowiq;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
@@ -20,7 +20,7 @@ spring:
       path: /h2-console
 
   # ─────────────────────────────────────────────
-  # PostgreSQL (Phase 2+ — Uncomment below and
+  # PostgreSQL (Phase 3+ — Uncomment below and
   # comment out the H2 block above to switch)
   # ─────────────────────────────────────────────
   # datasource:
@@ -37,7 +37,13 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
-        # For PostgreSQL Phase 2: org.hibernate.dialect.PostgreSQLDialect
+        # For PostgreSQL Phase 3: org.hibernate.dialect.PostgreSQLDialect
+
+  # ── Scheduling thread pool for ambulance simulation ───────────────
+  task:
+    scheduling:
+      pool:
+        size: 5
 
 logging:
   level:

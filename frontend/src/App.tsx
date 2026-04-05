@@ -5,8 +5,12 @@ import { connectWebSocket, disconnectWebSocket } from './services/socket';
 import PatientRegistrationForm from './components/PatientRegistrationForm';
 import QueueBoard from './components/QueueBoard';
 import StatCard from './components/StatCard';
+import AmbulanceMap from './components/AmbulanceMap';
+
+type Tab = 'queue' | 'ambulance';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<Tab>('queue');
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [stats, setStats] = useState<QueueStats>({ totalWaiting: 0, emergencies: 0, avgWaitMinutes: 0 });
   const [wsConnected, setWsConnected] = useState(false);
@@ -42,6 +46,11 @@ export default function App() {
   const formatTime = (d: Date | null) =>
     d ? d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
 
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'queue',     label: 'Patient Queue',   icon: '👥' },
+    { id: 'ambulance', label: 'Ambulance Tracker', icon: '🚑' },
+  ];
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--surface)' }}>
 
@@ -63,7 +72,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight gradient-text">MediFlowIQ</h1>
-              <p className="text-xs leading-none" style={{ color: 'var(--text-muted)' }}>Hospital Queue Management</p>
+              <p className="text-xs leading-none" style={{ color: 'var(--text-muted)' }}>Hospital Coordination System</p>
             </div>
           </div>
 
@@ -80,15 +89,46 @@ export default function App() {
                 : 'bg-red-50 text-red-600 border border-red-200'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-green-500 blink' : 'bg-red-400'}`} />
-              {wsConnected ? 'WebSocket Live' : 'Connecting...'}
+              {wsConnected ? 'Live' : 'Connecting…'}
             </div>
           </div>
+        </div>
+
+        {/* ── Tab Navigation ── */}
+        <div className="max-w-screen-2xl mx-auto px-6" style={{ borderTop: '1px solid var(--border)' }}>
+          <nav className="flex gap-0" role="tablist">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-all"
+                style={{
+                  borderBottom: activeTab === tab.id
+                    ? '2px solid var(--brand)'
+                    : '2px solid transparent',
+                  color: activeTab === tab.id ? 'var(--brand)' : 'var(--text-muted)',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: activeTab === tab.id
+                    ? '2px solid var(--brand)'
+                    : '2px solid transparent',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <span>{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
 
       <main className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
 
-        {/* ── Stat Cards ── */}
+        {/* ── Stat Cards — always visible ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard
             title="Total Waiting"
@@ -113,28 +153,35 @@ export default function App() {
           />
         </div>
 
-        {/* ── Main Layout ── */}
-        <div className="flex flex-col lg:flex-row gap-5">
-          {/* Registration Panel */}
-          <div className="w-full lg:w-80 shrink-0">
-            <PatientRegistrationForm onRegistered={fetchQueue} />
+        {/* ── Tab Panels ── */}
+        {activeTab === 'queue' && (
+          <div className="flex flex-col lg:flex-row gap-5 animate-fade-in">
+            {/* Registration Panel */}
+            <div className="w-full lg:w-80 shrink-0">
+              <PatientRegistrationForm onRegistered={fetchQueue} />
+            </div>
+            {/* Queue Board */}
+            <div className="flex-1 min-w-0">
+              <QueueBoard
+                entries={queue}
+                onUpdate={fetchQueue}
+                connected={wsConnected}
+              />
+            </div>
           </div>
+        )}
 
-          {/* Queue Board */}
-          <div className="flex-1 min-w-0">
-            <QueueBoard
-              entries={queue}
-              onUpdate={fetchQueue}
-              connected={wsConnected}
-            />
+        {activeTab === 'ambulance' && (
+          <div className="animate-fade-in">
+            <AmbulanceMap wsConnected={wsConnected} />
           </div>
-        </div>
+        )}
       </main>
 
       {/* ── Footer ── */}
       <footer className="text-center py-5 text-xs"
         style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
-        MediFlowIQ · Phase 1 — Core Queue System · Java Spring Boot + React
+        MediFlowIQ · Phase 2 — Ambulance Simulation · Java Spring Boot + React
       </footer>
     </div>
   );

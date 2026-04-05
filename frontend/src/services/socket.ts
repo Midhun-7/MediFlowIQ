@@ -1,10 +1,12 @@
-import { Client } from '@stomp/stompjs';
+import { Client, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import type { QueueEntry } from '../types';
+import type { QueueEntry, Ambulance } from '../types';
 
 type QueueUpdateCallback = (queue: QueueEntry[]) => void;
+type AmbulanceUpdateCallback = (ambulances: Ambulance[]) => void;
 
 let stompClient: Client | null = null;
+let ambulanceSub: StompSubscription | null = null;
 
 export const connectWebSocket = (onQueueUpdate: QueueUpdateCallback): Client => {
   const client = new Client({
@@ -34,9 +36,30 @@ export const connectWebSocket = (onQueueUpdate: QueueUpdateCallback): Client => 
   return client;
 };
 
+export const subscribeAmbulance = (onUpdate: AmbulanceUpdateCallback): void => {
+  if (!stompClient?.connected) {
+    console.warn('[WS] Cannot subscribe to ambulance — STOMP not connected yet');
+    return;
+  }
+  ambulanceSub = stompClient.subscribe('/topic/ambulance', (message) => {
+    try {
+      const ambulances: Ambulance[] = JSON.parse(message.body);
+      onUpdate(ambulances);
+    } catch (err) {
+      console.error('[WS] Failed to parse ambulance update', err);
+    }
+  });
+};
+
+export const unsubscribeAmbulance = (): void => {
+  ambulanceSub?.unsubscribe();
+  ambulanceSub = null;
+};
+
 export const disconnectWebSocket = (): void => {
   if (stompClient?.active) {
     stompClient.deactivate();
     stompClient = null;
   }
 };
+
