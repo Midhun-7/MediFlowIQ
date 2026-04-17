@@ -6,13 +6,19 @@ import PatientRegistrationForm from './components/PatientRegistrationForm';
 import QueueBoard from './components/QueueBoard';
 import StatCard from './components/StatCard';
 import AmbulanceMap from './components/AmbulanceMap';
+import SystemLoadIndicator from './components/SystemLoadIndicator';
 
 type Tab = 'queue' | 'ambulance';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('queue');
   const [queue, setQueue] = useState<QueueEntry[]>([]);
-  const [stats, setStats] = useState<QueueStats>({ totalWaiting: 0, emergencies: 0, avgWaitMinutes: 0 });
+  const [stats, setStats] = useState<QueueStats>({ 
+    totalWaiting: 0, 
+    emergencies: 0, 
+    avgWaitMinutes: 0, 
+    load: 'LOW' 
+  });
   const [wsConnected, setWsConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -30,11 +36,15 @@ export default function App() {
   useEffect(() => {
     fetchQueue();
 
-    const client = connectWebSocket((updatedQueue) => {
-      setQueue(updatedQueue);
-      setLastUpdated(new Date());
-      getStats().then(setStats).catch(() => {});
-    });
+    const client = connectWebSocket(
+      (updatedQueue) => {
+        setQueue(updatedQueue);
+        setLastUpdated(new Date());
+      },
+      (updatedStats) => {
+        setStats(updatedStats);
+      }
+    );
 
     client.onConnect = () => setWsConnected(true);
     client.onDisconnect = () => setWsConnected(false);
@@ -105,9 +115,6 @@ export default function App() {
                 onClick={() => setActiveTab(tab.id)}
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-all"
                 style={{
-                  borderBottom: activeTab === tab.id
-                    ? '2px solid var(--brand)'
-                    : '2px solid transparent',
                   color: activeTab === tab.id ? 'var(--brand)' : 'var(--text-muted)',
                   background: 'none',
                   border: 'none',
@@ -127,6 +134,9 @@ export default function App() {
       </header>
 
       <main className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+
+        {/* ── Intelligence Layer: System Load ── */}
+        <SystemLoadIndicator load={stats.load} />
 
         {/* ── Stat Cards — always visible ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -181,7 +191,7 @@ export default function App() {
       {/* ── Footer ── */}
       <footer className="text-center py-5 text-xs"
         style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
-        MediFlowIQ · Phase 2 — Ambulance Simulation · Java Spring Boot + React
+        MediFlowIQ · Phase 3 — Intelligence Layer · Java Spring Boot + React
       </footer>
     </div>
   );

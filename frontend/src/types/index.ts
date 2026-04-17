@@ -23,10 +23,13 @@ export interface RegisterPatientRequest {
   symptoms?: string;
 }
 
+export type SystemLoad = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+
 export interface QueueStats {
   totalWaiting: number;
   emergencies: number;
   avgWaitMinutes: number;
+  load: SystemLoad;
 }
 
 export interface Ambulance {

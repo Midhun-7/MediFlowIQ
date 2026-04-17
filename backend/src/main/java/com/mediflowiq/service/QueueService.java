@@ -8,6 +8,7 @@ import com.mediflowiq.model.Priority;
 import com.mediflowiq.model.QueueEntry;
 import com.mediflowiq.repository.PatientRepository;
 import com.mediflowiq.repository.QueueEntryRepository;
+import com.mediflowiq.model.SystemLoad;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -105,15 +106,36 @@ public class QueueService {
                 .average()
                 .orElse(0);
 
-        return new QueueStatsResponse(totalWaiting, emergencies, (int) Math.round(avgWait));
+        SystemLoad load = calculateSystemLoad(totalWaiting, emergencies);
+
+        return new QueueStatsResponse(totalWaiting, emergencies, (int) Math.round(avgWait), load);
+    }
+
+    private SystemLoad calculateSystemLoad(long totalWaiting, long emergencies) {
+        if (emergencies > 3 || totalWaiting > 20) return SystemLoad.CRITICAL;
+        if (emergencies > 1 || totalWaiting > 12) return SystemLoad.HIGH;
+        if (totalWaiting > 5) return SystemLoad.MODERATE;
+        return SystemLoad.LOW;
     }
 
     private void recalculateQueue() {
         List<QueueEntry> sorted = queueEntryRepository.findActiveQueueSortedByPriority();
+        int baseWait = 0;
+        
         for (int i = 0; i < sorted.size(); i++) {
             QueueEntry entry = sorted.get(i);
             entry.setPosition(i + 1);
-            entry.setEstimatedWaitMinutes((i + 1) * AVG_SERVICE_TIME_MINUTES);
+            
+            // Intelligence: Emergency patients have a faster "processing" time but contribute 
+            // to longer waits for others.
+            int serviceMultiplier = switch (entry.getPatient().getPriority()) {
+                case EMERGENCY -> 5;  // 5 mins per emergency
+                case HIGH_RISK -> 10; // 10 mins per high risk
+                case NORMAL    -> 15; // 15 mins per normal
+            };
+            
+            baseWait += serviceMultiplier;
+            entry.setEstimatedWaitMinutes(baseWait);
             queueEntryRepository.save(entry);
         }
     }
@@ -125,7 +147,11 @@ public class QueueService {
                 .map(QueueEntryResponse::from)
                 .collect(Collectors.toList());
         messagingTemplate.convertAndSend("/topic/queue", queue);
-        log.debug("Broadcast queue update: {} entries", queue.size());
+        
+        // Also broadcast stats update
+        messagingTemplate.convertAndSend("/topic/stats", getStats());
+        
+        log.debug("Broadcast queue and stats update");
     }
 
     private String generateToken(Priority priority) {
@@ -137,5 +163,5 @@ public class QueueService {
         return prefix + tokenCounter.getAndIncrement();
     }
 
-    public record QueueStatsResponse(long totalWaiting, long emergencies, int avgWaitMinutes) {}
+    public record QueueStatsResponse(long totalWaiting, long emergencies, int avgWaitMinutes, SystemLoad load) {}
 }
