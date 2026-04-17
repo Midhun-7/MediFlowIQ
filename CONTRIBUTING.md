@@ -141,18 +141,57 @@ Format: `type(scope): short description`
 | `docs` | Documentation | `docs: update ARCHITECTURE.md` |
 | `refactor` | Code improvement | `refactor(ambulance): simplify GPS simulator` |
 | `test` | Adding/fixing tests | `test(queue): add unit tests for wait time calc` |
-| `chore` | Maintenance | `chore: update npm dependencies` |
+| `chore` | Config, deps, tooling | `chore: bump jjwt to 0.12.6` |
+
+### Valid Scopes
+
+| Scope | Covers |
+|-------|--------|
+| `security` | JWT utils, auth filter, Spring Security config |
+| `auth` | Login, register, refresh endpoints and service |
+| `queue` | Patient queue logic, token generation, priority |
+| `ambulance` | GPS simulation, ambulance tracking |
+| `admin` | Admin controller, user management, audit log |
+| `frontend` | React pages, components, routing |
+| `api` | Axios service, interceptors, HTTP client |
+| `config` | Spring config, CORS, data initializer |
+| `db` | Entities, repositories, migrations |
+| `ws` | WebSocket config, STOMP, real-time broadcasts |
+| `docs` | README, ROADMAP, ARCHITECTURE, CONTRIBUTING |
+
+### ⚡ Atomic Commit Rule (Phase 5+)
+
+> **One commit = one logical, self-contained change.**
+
+Each commit must:
+- Do **exactly one thing** — if you need "and" to describe it, split it
+- **Compile and run** on its own (no broken intermediate states)
+- Have a message that completes the sentence: *"If applied, this commit will…"*
+
+**Good — separate concerns:**
+```bash
+git commit -m "feat(db): add AppUser entity and UserRepository"
+git commit -m "feat(security): add JWT utility with token generation and validation"
+git commit -m "feat(security): add JwtAuthFilter and Spring Security config"
+git commit -m "feat(auth): add login and token refresh endpoints"
+git commit -m "feat(frontend): add AuthContext with login/logout and role helpers"
+git commit -m "feat(frontend): add LoginPage with credential form"
+```
+
+**Bad — one massive commit per phase:**
+```bash
+git commit -m "feat: implement phase 4 security"   # ❌ too broad
+```
 
 ```bash
 # ✅ Good commit messages
 git commit -m "feat(queue): implement token generation with priority ordering"
-git commit -m "fix(websocket): reconnect logic on connection drop"
+git commit -m "fix(ws): handle reconnect on connection drop"
 git commit -m "docs: add API endpoint documentation"
 
 # ❌ Bad commit messages
 git commit -m "fixed stuff"
 git commit -m "wip"
-git commit -m "updates"
 ```
 
 ---
