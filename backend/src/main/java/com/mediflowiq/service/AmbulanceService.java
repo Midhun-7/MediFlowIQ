@@ -32,12 +32,15 @@ public class AmbulanceService {
 
     private final AmbulanceRepository ambulanceRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
     private final Random random = new Random();
 
     public AmbulanceService(AmbulanceRepository ambulanceRepository,
-                            SimpMessagingTemplate messagingTemplate) {
+                            SimpMessagingTemplate messagingTemplate,
+                            NotificationService notificationService) {
         this.ambulanceRepository = ambulanceRepository;
         this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
     }
 
     // ── Seed 3 ambulances on startup ────────────────────────────────
@@ -77,6 +80,9 @@ public class AmbulanceService {
         List<Ambulance> ambulances = ambulanceRepository.findAll();
 
         for (Ambulance amb : ambulances) {
+            // Phase 5 — skip simulation if driver is providing real GPS
+            if (amb.isGpsLive()) continue;
+
             if (amb.getStatus() == AmbulanceStatus.DISPATCHED ||
                 amb.getStatus() == AmbulanceStatus.RETURNING) {
 
@@ -94,6 +100,7 @@ public class AmbulanceService {
                         // Simulate: arrive at hospital, become available
                         amb.setStatus(AmbulanceStatus.AVAILABLE);
                         log.info("[Ambulance] {} arrived at hospital — now AVAILABLE", amb.getCallSign());
+                        notificationService.ambulanceArrived(amb.getCallSign());
 
                         // After a short delay, redispatch with a random new scene location
                         redispatch(amb);
@@ -145,6 +152,31 @@ public class AmbulanceService {
                 .orElseThrow(() -> new RuntimeException("Ambulance not found: " + id));
         amb.setStatus(newStatus);
         ambulanceRepository.save(amb);
+        broadcastUpdate();
+        return AmbulanceResponse.from(amb);
+    }
+
+    /**
+     * Phase 5 — accept real GPS coordinates from a driver's phone.
+     * Marks the ambulance as gpsLive=true so the scheduler skips it.
+     */
+    @Transactional
+    public AmbulanceResponse updateLocation(Long id, double lat, double lng) {
+        Ambulance amb = ambulanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ambulance not found: " + id));
+
+        boolean wasLive = amb.isGpsLive();
+        amb.setLat(lat);
+        amb.setLng(lng);
+        amb.setGpsLive(true);
+        amb.setEtaMinutes(estimateEta(lat, lng));
+        ambulanceRepository.save(amb);
+
+        if (!wasLive) {
+            log.info("[Ambulance] {} switched to LIVE GPS mode", amb.getCallSign());
+            notificationService.ambulanceLiveGps(amb.getCallSign());
+        }
+
         broadcastUpdate();
         return AmbulanceResponse.from(amb);
     }

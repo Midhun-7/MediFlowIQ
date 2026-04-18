@@ -14,6 +14,7 @@ public class AmbulanceResponse {
     private double targetLat;
     private double targetLng;
     private int etaMinutes;
+    private boolean gpsLive;
 
     public AmbulanceResponse() {}
 
@@ -28,6 +29,7 @@ public class AmbulanceResponse {
         dto.targetLat = a.getTargetLat();
         dto.targetLng = a.getTargetLng();
         dto.etaMinutes = a.getEtaMinutes();
+        dto.gpsLive = a.isGpsLive();
         return dto;
     }
 
@@ -41,4 +43,5 @@ public class AmbulanceResponse {
     public double getTargetLat() { return targetLat; }
     public double getTargetLng() { return targetLng; }
     public int getEtaMinutes() { return etaMinutes; }
+    public boolean isGpsLive() { return gpsLive; }
 }

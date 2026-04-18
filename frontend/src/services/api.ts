@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   QueueEntry, RegisterPatientRequest, QueueStats, Ambulance, AmbulanceStatus,
   AuthResponse, LoginCredentials, AppUserRecord, AuditLogEntry,
+  Hospital, HospitalRecommendation, AppNotification,
 } from '../types';
 
 // ── Axios instance ─────────────────────────────────────────────────────────
@@ -113,6 +114,23 @@ export const updateAmbulanceStatus = async (
   return res.data;
 };
 
+/**
+ * Phase 5 — Push real GPS coordinates from driver's device.
+ * Does NOT require a JWT token (called from the driver portal).
+ */
+export const updateAmbulanceLocation = async (
+  id: number,
+  lat: number,
+  lng: number
+): Promise<Ambulance> => {
+  const res = await axios.post<Ambulance>(
+    `http://localhost:8080/api/ambulances/${id}/location`,
+    { lat, lng },
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  return res.data;
+};
+
 // ── Admin endpoints ────────────────────────────────────────────────────────
 
 export const getUsers = async (): Promise<AppUserRecord[]> => {
@@ -142,4 +160,41 @@ export const getAuditLogs = async (): Promise<AuditLogEntry[]> => {
   return res.data;
 };
 
+// ── Hospital endpoints (Phase 5) ───────────────────────────────────────────
+
+export const getHospitals = async (): Promise<Hospital[]> => {
+  const res = await api.get<Hospital[]>('/hospitals');
+  return res.data;
+};
+
+export const getHospitalRecommendation = async (): Promise<HospitalRecommendation> => {
+  const res = await api.get<HospitalRecommendation>('/hospitals/recommend');
+  return res.data;
+};
+
+// ── Notification endpoints (Phase 5) ──────────────────────────────────────
+
+export const getNotificationHistory = async (): Promise<AppNotification[]> => {
+  const res = await api.get<AppNotification[]>('/notifications');
+  return res.data;
+};
+
+// ── Patient Import endpoint (Phase 5) ─────────────────────────────────────
+
+export const importPatient = async (payload: {
+  name: string;
+  age: string;
+  priority: string;
+  symptoms?: string;
+  sourceSystem: string;
+  externalId?: string;
+}): Promise<{ status: string; message: string; token?: string }> => {
+  const res = await api.post('/import/patient', {
+    resourceType: 'Patient',
+    ...payload,
+  });
+  return res.data;
+};
+
 export default api;
+

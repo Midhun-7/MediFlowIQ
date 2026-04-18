@@ -36,6 +36,10 @@ public class Ambulance {
     @Column(name = "eta_minutes")
     private int etaMinutes;
 
+    /** When true, real GPS coordinates are being pushed by the driver — skip simulation */
+    @Column(name = "gps_live", nullable = false)
+    private boolean gpsLive = false;
+
     public Ambulance() {}
 
     public Ambulance(String callSign, String driverName, double lat, double lng) {
@@ -74,4 +78,7 @@ public class Ambulance {
 
     public int getEtaMinutes() { return etaMinutes; }
     public void setEtaMinutes(int etaMinutes) { this.etaMinutes = etaMinutes; }
+
+    public boolean isGpsLive() { return gpsLive; }
+    public void setGpsLive(boolean gpsLive) { this.gpsLive = gpsLive; }
 }

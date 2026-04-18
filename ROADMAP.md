@@ -11,8 +11,8 @@ This roadmap tracks the development milestones and planned features across all p
 | Phase 1 | Core Queue System | ✅ **Complete** |
 | Phase 2 | Ambulance Simulation | ✅ **Complete** |
 | Phase 3 | Intelligence Layer | ✅ **Complete** |
-| Phase 4 | Security & Roles | 🔄 **In Progress** |
-| Phase 5 | Real Integration | 💡 Future |
+| Phase 4 | Security & Roles | ✅ **Complete** |
+| Phase 5 | Real Integration | ✅ **Complete** |
 
 ---
 

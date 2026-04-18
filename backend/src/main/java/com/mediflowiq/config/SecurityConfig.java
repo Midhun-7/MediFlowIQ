@@ -104,6 +104,9 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()          // WebSocket handshake
                 .requestMatchers("/h2-console/**").permitAll()  // Dev only
 
+                // ── Phase 5: Driver GPS (no JWT — mobile driver portal) ──
+                .requestMatchers(HttpMethod.POST, "/api/ambulances/*/location").permitAll()
+
                 // ── Queue API ────────────────────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/queue/**").hasAnyRole("ADMIN", "DOCTOR", "STAFF")
                 .requestMatchers(HttpMethod.POST, "/api/queue/register").hasAnyRole("ADMIN", "STAFF")
@@ -112,6 +115,15 @@ public class SecurityConfig {
                 // ── Ambulance API ─────────────────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/ambulances/**").hasAnyRole("ADMIN", "DOCTOR", "STAFF")
                 .requestMatchers(HttpMethod.PATCH, "/api/ambulances/**").hasAnyRole("ADMIN", "STAFF")
+
+                // ── Hospital API (Phase 5) ────────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/hospitals/**").hasAnyRole("ADMIN", "DOCTOR", "STAFF")
+
+                // ── Notifications (Phase 5) ───────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/notifications/**").hasAnyRole("ADMIN", "DOCTOR", "STAFF")
+
+                // ── Patient Import (Phase 5) ──────────────────────────────
+                .requestMatchers("/api/import/**").hasRole("ADMIN")
 
                 // ── Admin-only ────────────────────────────────────────────
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

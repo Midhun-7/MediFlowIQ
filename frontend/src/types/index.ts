@@ -72,6 +72,7 @@ export interface Ambulance {
   targetLat: number;
   targetLng: number;
   etaMinutes: number;
+  gpsLive: boolean; // Phase 5 — true when driver is sharing real GPS
 }
 
 export interface AppUserRecord {
@@ -91,4 +92,41 @@ export interface AuditLogEntry {
   details: string;
   performedAt: string;
   ipAddress: string;
+}
+
+// ── Phase 5 types ───────────────────────────────────────────────────────────
+
+export interface Hospital {
+  id: number;
+  name: string;
+  city: string;
+  address: string;
+  lat: number;
+  lng: number;
+  maxCapacity: number;
+  currentLoad: number;
+  loadPercent: number;  // computed by backend
+  active: boolean;
+  phone: string;
+}
+
+export interface HospitalRecommendation {
+  recommended: boolean;
+  hospital: Hospital | null;
+}
+
+export type NotificationEventType =
+  | 'PATIENT_REGISTERED'
+  | 'STATUS_CHANGED'
+  | 'AMBULANCE_ARRIVED'
+  | 'AMBULANCE_LIVE_GPS'
+  | 'HIGH_LOAD_ALERT'
+  | 'PATIENT_IMPORTED';
+
+export interface AppNotification {
+  type: NotificationEventType;
+  title: string;
+  message: string;
+  severity: string;  // "EMERGENCY" | "HIGH" | "INFO"
+  timestamp: string; // ISO string
 }

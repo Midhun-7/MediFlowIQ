@@ -1,17 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { QueueEntry, QueueStats, UserRole } from './types';
-import { getQueue, getStats } from './services/api';
+import type { QueueEntry, QueueStats, UserRole, AppNotification } from './types';
+import { getQueue, getStats, getNotificationHistory } from './services/api';
 import { connectWebSocket, disconnectWebSocket } from './services/socket';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import AdminPanel from './pages/AdminPanel';
+import DriverPortal from './pages/DriverPortal';
 import PatientRegistrationForm from './components/PatientRegistrationForm';
 import QueueBoard from './components/QueueBoard';
 import StatCard from './components/StatCard';
 import AmbulanceMap from './components/AmbulanceMap';
 import SystemLoadIndicator from './components/SystemLoadIndicator';
+import HospitalPanel from './components/HospitalPanel';
+import NotificationCenter, { NotificationToast } from './components/NotificationCenter';
 
-type Tab = 'queue' | 'ambulance' | 'admin';
+type Tab = 'queue' | 'ambulance' | 'hospitals' | 'admin';
 
 const ROLE_BADGE: Record<UserRole, { label: string; bg: string; color: string }> = {
   ADMIN:  { label: 'Admin',  bg: '#fef2f2', color: '#dc2626' },
@@ -19,7 +22,23 @@ const ROLE_BADGE: Record<UserRole, { label: string; bg: string; color: string }>
   STAFF:  { label: 'Staff',  bg: '#f0fdf4', color: '#16a34a' },
 };
 
-// ── Inner dashboard (rendered only when authenticated) ─────────────────────
+// ── Driver portal route (outside auth gate) ──────────────────────────────────
+
+function AppRouter() {
+  if (window.location.pathname === '/driver') {
+    return <DriverPortal />;
+  }
+  return <AuthGate />;
+}
+
+// ── Auth gate ────────────────────────────────────────────────────────────────
+
+function AuthGate() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Dashboard /> : <LoginPage />;
+}
+
+// ── Inner dashboard (rendered only when authenticated) ──────────────────────
 
 function Dashboard() {
   const { user, logout, isAdmin } = useAuth();
@@ -32,6 +51,20 @@ function Dashboard() {
   const [wsConnected, setWsConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // ── Phase 5 — Notifications ─────────────────────────────────────────────
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [toast, setToast] = useState<AppNotification | null>(null);
+
+  const addNotification = useCallback((n: AppNotification) => {
+    setNotifications(prev => {
+      const updated = [...prev, n].slice(-50); // keep last 50
+      return updated;
+    });
+    setUnreadCount(c => c + 1);
+    setToast(n);
+  }, []);
+
   const fetchQueue = useCallback(async () => {
     try {
       const [q, s] = await Promise.all([getQueue(), getStats()]);
@@ -41,12 +74,18 @@ function Dashboard() {
     } catch { /* Backend might not be running yet */ }
   }, []);
 
+  // Load notification history on mount
+  useEffect(() => {
+    getNotificationHistory().then(setNotifications).catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchQueue();
 
     const client = connectWebSocket(
       (updatedQueue) => { setQueue(updatedQueue); setLastUpdated(new Date()); },
-      (updatedStats) => { setStats(updatedStats); }
+      (updatedStats) => { setStats(updatedStats); },
+      addNotification   // Phase 5 — wire up notification callback
     );
 
     client.onConnect    = () => setWsConnected(true);
@@ -54,7 +93,7 @@ function Dashboard() {
     client.onWebSocketClose = () => setWsConnected(false);
 
     return () => { disconnectWebSocket(); };
-  }, [fetchQueue]);
+  }, [fetchQueue, addNotification]);
 
   const formatTime = (d: Date | null) =>
     d ? d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
@@ -62,6 +101,7 @@ function Dashboard() {
   const allTabs: { id: Tab; label: string; icon: string; visible: boolean }[] = [
     { id: 'queue',     label: 'Patient Queue',     icon: '👥', visible: true },
     { id: 'ambulance', label: 'Ambulance Tracker', icon: '🚑', visible: true },
+    { id: 'hospitals', label: 'Hospital Network',  icon: '🏥', visible: true },
     { id: 'admin',     label: 'Admin Panel',       icon: '⚙️', visible: isAdmin },
   ];
   const tabs = allTabs.filter(t => t.visible);
@@ -111,6 +151,34 @@ function Dashboard() {
               <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-green-500 blink' : 'bg-red-400'}`} />
               {wsConnected ? 'Live' : 'Connecting…'}
             </div>
+
+            {/* Phase 5 — Notification bell */}
+            <NotificationCenter
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkRead={() => setUnreadCount(0)}
+            />
+
+            {/* Phase 5 — Driver portal link */}
+            <a
+              href="/driver"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                textDecoration: 'none',
+                padding: '0.3rem 0.65rem',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              📱 Driver Portal
+            </a>
 
             {/* Role badge */}
             {roleBadge && (
@@ -207,6 +275,12 @@ function Dashboard() {
           </div>
         )}
 
+        {activeTab === 'hospitals' && (
+          <div className="animate-fade-in">
+            <HospitalPanel />
+          </div>
+        )}
+
         {activeTab === 'admin' && isAdmin && (
           <div className="animate-fade-in">
             <AdminPanel />
@@ -217,15 +291,22 @@ function Dashboard() {
       {/* ── Footer ── */}
       <footer className="text-center py-5 text-xs"
         style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
-        MediFlowIQ · Phase 4 — Security &amp; Roles · Java Spring Boot + React
+        MediFlowIQ · Phase 5 — Real Integration · Java Spring Boot + React
       </footer>
+
+      {/* ── Phase 5 — Toast notification ── */}
+      {toast && (
+        <NotificationToast
+          notification={toast}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
 
-// ── Root App — authentication gate ────────────────────────────────────────
+// ── Root App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <Dashboard /> : <LoginPage />;
+  return <AppRouter />;
 }

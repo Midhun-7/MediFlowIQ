@@ -1,17 +1,20 @@
 import { Client, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import type { QueueEntry, Ambulance } from '../types';
+import type { QueueEntry, Ambulance, AppNotification } from '../types';
 
 type QueueUpdateCallback = (queue: QueueEntry[]) => void;
 type StatsUpdateCallback = (stats: import('../types').QueueStats) => void;
 type AmbulanceUpdateCallback = (ambulances: Ambulance[]) => void;
+type NotificationCallback = (notification: AppNotification) => void;
 
 let stompClient: Client | null = null;
 let ambulanceSub: StompSubscription | null = null;
+let notificationSub: StompSubscription | null = null;
 
 export const connectWebSocket = (
   onQueueUpdate: QueueUpdateCallback,
-  onStatsUpdate: StatsUpdateCallback
+  onStatsUpdate: StatsUpdateCallback,
+  onNotification?: NotificationCallback
 ): Client => {
   const client = new Client({
     webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
@@ -38,6 +41,18 @@ export const connectWebSocket = (
           console.error('[WS] Failed to parse stats update', err);
         }
       });
+
+      // Phase 5 — Subscribe to real-time notifications
+      if (onNotification) {
+        notificationSub = client.subscribe('/topic/notifications', (message) => {
+          try {
+            const notification: AppNotification = JSON.parse(message.body);
+            onNotification(notification);
+          } catch (err) {
+            console.error('[WS] Failed to parse notification', err);
+          }
+        });
+      }
     },
     onDisconnect: () => {
       console.log('[WS] Disconnected');
@@ -72,10 +87,16 @@ export const unsubscribeAmbulance = (): void => {
   ambulanceSub = null;
 };
 
+export const unsubscribeNotifications = (): void => {
+  notificationSub?.unsubscribe();
+  notificationSub = null;
+};
+
 export const disconnectWebSocket = (): void => {
   if (stompClient?.active) {
     stompClient.deactivate();
     stompClient = null;
   }
 };
+
 

@@ -11,6 +11,7 @@ import com.mediflowiq.repository.QueueEntryRepository;
 import com.mediflowiq.model.SystemLoad;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +30,19 @@ public class QueueService {
     private final PatientRepository patientRepository;
     private final QueueEntryRepository queueEntryRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
+    private final HospitalService hospitalService;
 
     public QueueService(PatientRepository patientRepository,
                         QueueEntryRepository queueEntryRepository,
-                        SimpMessagingTemplate messagingTemplate) {
+                        SimpMessagingTemplate messagingTemplate,
+                        NotificationService notificationService,
+                        @Lazy HospitalService hospitalService) {
         this.patientRepository = patientRepository;
         this.queueEntryRepository = queueEntryRepository;
         this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
+        this.hospitalService = hospitalService;
     }
 
     @Transactional
@@ -63,6 +70,9 @@ public class QueueService {
 
         broadcastQueueUpdate();
 
+        // Phase 5 — fire notification
+        notificationService.patientRegistered(patient.getName(), token, patient.getPriority().name());
+
         return QueueEntryResponse.from(updatedEntry);
     }
 
@@ -79,12 +89,16 @@ public class QueueService {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found: " + patientId));
 
+        String oldStatus = patient.getStatus().name();
         patient.setStatus(newStatus);
         patientRepository.save(patient);
         log.info("Patient {} status updated to {}", patient.getName(), newStatus);
 
         recalculateQueue();
         broadcastQueueUpdate();
+
+        // Phase 5 — fire notification
+        notificationService.statusChanged(patient.getName(), oldStatus, newStatus.name());
 
         QueueEntry entry = queueEntryRepository.findByPatientId(patientId)
                 .orElseThrow(() -> new RuntimeException("Queue entry not found"));
@@ -107,6 +121,14 @@ public class QueueService {
                 .orElse(0);
 
         SystemLoad load = calculateSystemLoad(totalWaiting, emergencies);
+
+        // Phase 5 — sync hospital load counter
+        hospitalService.updatePrimaryLoad((int) totalWaiting);
+
+        // Phase 5 — fire high-load alert when crossing into HIGH/CRITICAL
+        if (load == SystemLoad.HIGH || load == SystemLoad.CRITICAL) {
+            notificationService.highLoadAlert(totalWaiting, emergencies);
+        }
 
         return new QueueStatsResponse(totalWaiting, emergencies, (int) Math.round(avgWait), load);
     }
