@@ -1,0 +1,17 @@
+# ── Frontend (not needed for backend image) ───────────────────────────────────
+frontend/
+
+# ── Git & IDE ─────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.vscode/
+
+# ── Maven local repository cache (pulled fresh inside builder stage) ──────────
+backend/.m2/
+
+# ── Build output already in target (rebuilt inside Docker) ───────────────────
+backend/target/
+
+# ── Docs & misc ───────────────────────────────────────────────────────────────
+*.md
+prompt.txt
