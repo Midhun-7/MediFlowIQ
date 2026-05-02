@@ -49,6 +49,7 @@ export default function HospitalPanel() {
   const [importing, setImporting] = useState(false);
   const [importHistory, setImportHistory] = useState<ImportRecord[]>([]);
   const [importError, setImportError] = useState<string | null>(null);
+  const [lastImport, setLastImport] = useState<ImportRecord | null>(null);
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -99,17 +100,17 @@ export default function HospitalPanel() {
       const tokenMatch = res.message?.match(/token\s+([A-Z]\d+)/);
       const token = tokenMatch ? tokenMatch[1] : '—';
 
-      setImportHistory(prev => [
-        {
-          token,
-          name:     importForm.name,
-          priority: importForm.priority,
-          hospital: hospitalTag,
-          time:     new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          message:  res.message,
-        },
-        ...prev,
-      ].slice(0, 10)); // keep last 10
+      const record: ImportRecord = {
+        token,
+        name:     importForm.name,
+        priority: importForm.priority,
+        hospital: hospitalTag,
+        time:     new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        message:  res.message,
+      };
+
+      setImportHistory(prev => [record, ...prev].slice(0, 10));
+      setLastImport(record);
 
       // Reset name/age/symptoms but keep defaults
       setImportForm(f => ({ ...f, name: '', age: '', symptoms: '', externalId: '' }));
@@ -436,6 +437,49 @@ export default function HospitalPanel() {
                 </span>
               )}
             </div>
+
+            {/* ── Inline success result — shown immediately after import ── */}
+            {lastImport && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.85rem 1.1rem',
+                background: '#f0fdf4',
+                border: '1px solid #86efac',
+                borderLeft: '4px solid #16a34a',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+              }}>
+                <span style={{ fontSize: '1.3rem', lineHeight: 1 }}>✅</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#15803d' }}>
+                    Patient imported — Token:{' '}
+                    <span style={{
+                      background: '#16a34a', color: 'white',
+                      padding: '1px 10px', borderRadius: '6px',
+                      fontFamily: 'monospace', fontSize: '1rem',
+                      letterSpacing: '0.05em',
+                    }}>
+                      {lastImport.token}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#166534', marginTop: '0.3rem' }}>
+                    <strong>{lastImport.name}</strong> · {lastImport.priority} · Routed to <strong>{lastImport.hospital}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.73rem', color: '#4ade80', marginTop: '0.15rem' }}>
+                    {lastImport.time} · added to Patient Queue
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLastImport(null)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#86efac', fontSize: '1.1rem', lineHeight: 1, flexShrink: 0,
+                  }}
+                >×</button>
+              </div>
+            )}
 
             {/* Error */}
             {importError && (

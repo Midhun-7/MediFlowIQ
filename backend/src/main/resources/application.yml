@@ -6,38 +6,41 @@ spring:
     name: mediflowiq
 
   # ─────────────────────────────────────────────
-  # H2 In-Memory Database (Phase 1 & 2 — Dev Only)
+  # PostgreSQL Database (Phase 6+)
   # ─────────────────────────────────────────────
   datasource:
-    url: jdbc:h2:mem:mediflowiq;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://db.zuqizpcptvshptbgptmw.supabase.co:5432/postgres
+    username: postgres
+    password: yJ?!B/@rNjFHB5H
+    driver-class-name: org.postgresql.Driver
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+
+  
 
   # ─────────────────────────────────────────────
-  # PostgreSQL (Phase 3+ — Uncomment below and
-  # comment out the H2 block above to switch)
+  # H2 In-Memory Database (Phase 1–5 — Dev Only)
+  # Kept here for reference — do not re-enable unless reverting to dev mode
   # ─────────────────────────────────────────────
   # datasource:
-  #   url: jdbc:postgresql://localhost:5432/mediflowiq
-  #   username: postgres
-  #   password: your_password
-  #   driver-class-name: org.postgresql.Driver
+  #   url: jdbc:h2:mem:mediflowiq;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+  #   driver-class-name: org.h2.Driver
+  #   username: sa
+  #   password:
+  # h2:
+  #   console:
+  #     enabled: true
+  #     path: /h2-console
 
   jpa:
     hibernate:
-      ddl-auto: create-drop   # auto creates schema on start (use 'validate' in prod)
+      ddl-auto: update          # keeps existing data; creates new tables automatically
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
-        # For PostgreSQL Phase 3: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
 
   # ── Scheduling thread pool for ambulance simulation ───────────────
   task:

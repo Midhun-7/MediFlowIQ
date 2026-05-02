@@ -20,6 +20,8 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Override Hibernate to support PostgreSQL 17/18 (lc_collate removed) -->
+        <hibernate.version>6.6.4.Final</hibernate.version>
     </properties>
 
     <dependencies>
