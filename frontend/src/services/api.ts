@@ -5,10 +5,21 @@ import type {
   Hospital, HospitalRecommendation, AppNotification,
 } from '../types';
 
+// ── Base URL (set VITE_API_BASE_URL in frontend/.env) ─────────────────────
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+if (!BASE_URL) {
+  throw new Error(
+    '[MediFlowIQ] VITE_API_BASE_URL is not defined. ' +
+    'Add it to frontend/.env (e.g. VITE_API_BASE_URL=http://localhost:8080/api)'
+  );
+}
+
 // ── Axios instance ─────────────────────────────────────────────────────────
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -40,7 +51,7 @@ api.interceptors.response.use(
         if (raw) {
           const auth = JSON.parse(raw);
           const { data } = await axios.post<AuthResponse>(
-            'http://localhost:8080/api/auth/refresh',
+            `${BASE_URL}/auth/refresh`,
             { refreshToken: auth.refreshToken }
           );
           const updated = {
@@ -124,7 +135,7 @@ export const updateAmbulanceLocation = async (
   lng: number
 ): Promise<Ambulance> => {
   const res = await axios.post<Ambulance>(
-    `http://localhost:8080/api/ambulances/${id}/location`,
+    `${BASE_URL}/ambulances/${id}/location`,
     { lat, lng },
     { headers: { 'Content-Type': 'application/json' } }
   );
