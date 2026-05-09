@@ -16,6 +16,9 @@ if (!BASE_URL) {
   );
 }
 
+/** Phase 6 — exported for use in patient portal pages that use fetch() directly */
+export const API_BASE = BASE_URL;
+
 // ── Axios instance ─────────────────────────────────────────────────────────
 
 const api = axios.create({

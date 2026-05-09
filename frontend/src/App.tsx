@@ -1,8 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import type { QueueEntry, QueueStats, UserRole, AppNotification } from './types';
 import { getQueue, getStats, getNotificationHistory } from './services/api';
 import { connectWebSocket, disconnectWebSocket } from './services/socket';
 import { useAuth } from './contexts/AuthContext';
+import { PatientAuthProvider } from './contexts/PatientAuthContext';
+// Phase 6 — Patient portal pages
+import { PatientLoginPage } from './pages/PatientLoginPage';
+import { PatientRegisterPage } from './pages/PatientRegisterPage';
+import { PatientDashboard } from './pages/PatientDashboard';
+import { PatientPrescriptions } from './pages/PatientPrescriptions';
+import { FindDoctor } from './pages/FindDoctor';
+import { BookingPage } from './pages/BookingPage';
+import { MyBookings } from './pages/MyBookings';
+import { PatientNotifications } from './pages/PatientNotifications';
+import { PatientMedicalHistory } from './pages/PatientMedicalHistory';
+import { DoctorPrescriptionForm } from './pages/DoctorPrescriptionForm';
 import LoginPage from './pages/LoginPage';
 import AdminPanel from './pages/AdminPanel';
 import DriverPortal from './pages/DriverPortal';
@@ -24,7 +37,7 @@ const ROLE_BADGE: Record<UserRole, { label: string; bg: string; color: string }>
 
 // ── Driver portal route (outside auth gate) ──────────────────────────────────
 
-function AppRouter() {
+function LegacyRouter() {
   if (window.location.pathname === '/driver') {
     return <DriverPortal />;
   }
@@ -308,5 +321,26 @@ function Dashboard() {
 // ── Root App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  return <AppRouter />;
+  return (
+    <BrowserRouter>
+      <PatientAuthProvider>
+        <Routes>
+          {/* Phase 6 — Patient portal routes */}
+          <Route path="/patient/login"         element={<PatientLoginPage />} />
+          <Route path="/patient/register"      element={<PatientRegisterPage />} />
+          <Route path="/patient/dashboard"     element={<PatientDashboard />} />
+          <Route path="/patient/history"        element={<PatientMedicalHistory />} />
+          <Route path="/patient/prescriptions" element={<PatientPrescriptions />} />
+          <Route path="/patient/find-doctor"   element={<FindDoctor />} />
+          <Route path="/patient/book/:doctorId" element={<BookingPage />} />
+          <Route path="/patient/bookings"      element={<MyBookings />} />
+          <Route path="/patient/notifications" element={<PatientNotifications />} />
+          {/* Doctor prescription form (staff dashboard embeds this) */}
+          <Route path="/doctor/prescriptions"  element={<DoctorPrescriptionForm />} />
+          {/* Legacy staff portal — all other paths */}
+          <Route path="*" element={<LegacyRouter />} />
+        </Routes>
+      </PatientAuthProvider>
+    </BrowserRouter>
+  );
 }
