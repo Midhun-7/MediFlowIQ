@@ -22,7 +22,7 @@ export const PatientSidebar: React.FC<{ active: string }> = ({ active }) => {
 
   usePatientWebSocket(patient?.patientId ?? null, () => setToastCount(c => c + 1));
 
-  const handleLogout = () => { logout(); navigate('/patient/login'); };
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
     <aside style={sidebarStyles.sidebar}>

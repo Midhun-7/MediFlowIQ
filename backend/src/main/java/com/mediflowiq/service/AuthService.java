@@ -5,8 +5,10 @@ import com.mediflowiq.dto.LoginRequest;
 import com.mediflowiq.dto.RegisterUserRequest;
 import com.mediflowiq.model.AppUser;
 import com.mediflowiq.model.AuditLog;
+import com.mediflowiq.model.Doctor;
 import com.mediflowiq.model.Role;
 import com.mediflowiq.repository.AuditLogRepository;
+import com.mediflowiq.repository.DoctorRepository;
 import com.mediflowiq.repository.UserRepository;
 import com.mediflowiq.security.JwtUtils;
 import org.slf4j.Logger;
@@ -31,6 +33,7 @@ public class AuthService {
     @Autowired private AuthenticationManager authManager;
     @Autowired private JwtUtils jwtUtils;
     @Autowired private UserRepository userRepository;
+    @Autowired private DoctorRepository doctorRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private AuditLogRepository auditLogRepository;
 
@@ -50,6 +53,26 @@ public class AuthService {
         AppUser user = userRepository.findByUsername(request.getUsername()).orElseThrow();
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
+
+        // ── NMC UID validation for DOCTOR role ──────────────────────────────
+        if (user.getRole() == Role.DOCTOR) {
+            String providedUid = request.getNmcUid();
+            if (providedUid == null || providedUid.isBlank()) {
+                throw new IllegalArgumentException(
+                        "NMC UID is required for doctor login. " +
+                        "Please enter your National Medical Commission Unique ID.");
+            }
+            Doctor doctor = doctorRepository.findByAppUserId(user.getId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No doctor profile linked to this account. Contact admin."));
+            if (!providedUid.trim().equalsIgnoreCase(doctor.getNmcUid())) {
+                auditLogRepository.save(new AuditLog(
+                        request.getUsername(), "DOCTOR_LOGIN_NMC_FAIL",
+                        "NMC UID mismatch — login blocked", ipAddress));
+                throw new IllegalArgumentException(
+                        "Invalid NMC UID. Access denied.");
+            }
+        }
 
         String accessToken  = jwtUtils.generateToken(auth);
         String refreshToken = jwtUtils.generateRefreshToken(request.getUsername());

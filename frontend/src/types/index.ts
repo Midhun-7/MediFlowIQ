@@ -14,6 +14,8 @@ export interface AuthUser {
 export interface LoginCredentials {
   username: string;
   password: string;
+  /** Required for DOCTOR role — NMC Unique Identification Number */
+  nmcUid?: string;
 }
 
 export interface AuthResponse {

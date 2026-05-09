@@ -13,6 +13,9 @@ public class LoginRequest {
     @Size(min = 6, max = 100)
     private String password;
 
+    /** Optional — required only when role = DOCTOR. NMC Unique ID issued by National Medical Commission. */
+    private String nmcUid;
+
     public LoginRequest() {}
 
     public String getUsername() { return username; }
@@ -20,4 +23,7 @@ public class LoginRequest {
 
     public String getPassword() { return password; }
     public void setPassword(String p) { this.password = p; }
+
+    public String getNmcUid() { return nmcUid; }
+    public void setNmcUid(String n) { this.nmcUid = n; }
 }

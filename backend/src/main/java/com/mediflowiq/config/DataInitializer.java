@@ -139,6 +139,7 @@ public class DataInitializer implements CommandLineRunner {
         drSmith.setAvailableTo("17:00");
         drSmith.setHospital(h1);
         drSmith.setAppUser(drSmithUser);
+        drSmith.setNmcUid("NMC1001234");  // Dr. Sarah Smith — NMC UID
         drSmith = doctorRepository.save(drSmith);
 
         Doctor drKumar = new Doctor();
@@ -156,6 +157,7 @@ public class DataInitializer implements CommandLineRunner {
         drKumar.setAvailableTo("18:00");
         drKumar.setHospital(h1);
         drKumar.setAppUser(drKumarUser);
+        drKumar.setNmcUid("NMC1005678");  // Dr. Rajesh Kumar — NMC UID
         drKumar = doctorRepository.save(drKumar);
 
         Doctor drNair = new Doctor();
@@ -174,6 +176,7 @@ public class DataInitializer implements CommandLineRunner {
         drNair.setAvailableTo("15:00");
         drNair.setHospital(h2);
         drNair.setAppUser(drSurgeonUser);
+        drNair.setNmcUid("NMC2009012");  // Dr. Priya Nair — NMC UID
         drNair = doctorRepository.save(drNair);
 
         Doctor drMenon = new Doctor();
@@ -192,6 +195,7 @@ public class DataInitializer implements CommandLineRunner {
         drMenon.setAvailableTo("16:00");
         drMenon.setHospital(h3);
         drMenon.setAppUser(drNeuroUser);
+        drMenon.setNmcUid("NMC3003456");  // Dr. Arun Menon — NMC UID
         drMenon = doctorRepository.save(drMenon);
 
         log.info("[Init] ✅ Seeded 4 doctor profiles");

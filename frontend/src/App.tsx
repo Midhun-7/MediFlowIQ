@@ -6,7 +6,7 @@ import { connectWebSocket, disconnectWebSocket } from './services/socket';
 import { useAuth } from './contexts/AuthContext';
 import { PatientAuthProvider } from './contexts/PatientAuthContext';
 // Phase 6 — Patient portal pages
-import { PatientLoginPage } from './pages/PatientLoginPage';
+import { UnifiedLoginPage } from './pages/UnifiedLoginPage';
 import { PatientRegisterPage } from './pages/PatientRegisterPage';
 import { PatientDashboard } from './pages/PatientDashboard';
 import { PatientPrescriptions } from './pages/PatientPrescriptions';
@@ -326,7 +326,9 @@ export default function App() {
       <PatientAuthProvider>
         <Routes>
           {/* Phase 6 — Patient portal routes */}
-          <Route path="/patient/login"         element={<PatientLoginPage />} />
+          {/* Phase 6 — Unified login (replaces separate patient/staff logins) */}
+          <Route path="/login"               element={<UnifiedLoginPage />} />
+          <Route path="/patient/login"       element={<UnifiedLoginPage />} />
           <Route path="/patient/register"      element={<PatientRegisterPage />} />
           <Route path="/patient/dashboard"     element={<PatientDashboard />} />
           <Route path="/patient/history"        element={<PatientMedicalHistory />} />

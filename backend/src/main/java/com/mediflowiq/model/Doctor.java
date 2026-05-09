@@ -52,6 +52,14 @@ public class Doctor {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    /**
+     * National Medical Commission Unique Identification Number.
+     * Used to verify doctor identity at login — prevents unauthorized access.
+     * Format: 7-digit number issued by NMC India.
+     */
+    @Column(name = "nmc_uid", length = 20, unique = true)
+    private String nmcUid;
+
     @Column(name = "available_from", length = 10)
     private String availableFrom; // e.g. "09:00"
 
@@ -109,6 +117,9 @@ public class Doctor {
 
     public String getAvatarUrl()                    { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl)      { this.avatarUrl = avatarUrl; }
+
+    public String getNmcUid()                       { return nmcUid; }
+    public void setNmcUid(String nmcUid)            { this.nmcUid = nmcUid; }
 
     public String getAvailableFrom()                { return availableFrom; }
     public void setAvailableFrom(String t)          { this.availableFrom = t; }
