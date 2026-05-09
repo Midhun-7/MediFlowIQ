@@ -104,8 +104,21 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()          // WebSocket handshake
                 .requestMatchers("/h2-console/**").permitAll()  // Dev only
 
+                // ── Phase 6: Patient self-service auth ───────────────────
+                .requestMatchers("/api/patient/auth/**").permitAll()
+
+                // ── Phase 6: Doctor & hospital discovery (public) ────────
+                .requestMatchers(HttpMethod.GET, "/api/discovery/**").permitAll()
+
                 // ── Phase 5: Driver GPS (no JWT — mobile driver portal) ──
                 .requestMatchers(HttpMethod.POST, "/api/ambulances/*/location").permitAll()
+
+                // ── Phase 6: Patient portal data (authenticated) ─────────
+                .requestMatchers("/api/patient/**").permitAll()  // patientId in path; JWT validated by filter
+                .requestMatchers("/api/appointments/**").permitAll()
+
+                // ── Phase 6: Doctor prescription writing ─────────────────
+                .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
 
                 // ── Queue API ────────────────────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/queue/**").hasAnyRole("ADMIN", "DOCTOR", "STAFF")

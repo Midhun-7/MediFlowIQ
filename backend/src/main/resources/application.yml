@@ -62,3 +62,13 @@ app:
     secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
     expiration-ms: 3600000       # 1 hour
     refresh-expiration-ms: 86400000  # 24 hours
+
+# ─────────────────────────────────────────────
+# Phase 6 — Razorpay Payment Gateway
+# Keys are loaded from environment variables — NEVER hardcode here.
+# Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your OS env or .env file.
+# ─────────────────────────────────────────────
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_placeholder}
+  key-secret: ${RAZORPAY_KEY_SECRET:placeholder_secret}
+
