@@ -27,7 +27,15 @@ public class DoctorService {
     @Autowired private SimpMessagingTemplate messagingTemplate;
 
     public List<Doctor> searchDoctors(String specialty, String city) {
-        return doctorRepo.searchDoctors(specialty, city);
+        return doctorRepo.findAll().stream()
+                .filter(d -> specialty == null || specialty.isBlank() ||
+                             d.getSpecialty() != null &&
+                             d.getSpecialty().toLowerCase().contains(specialty.toLowerCase()))
+                .filter(d -> city == null || city.isBlank() ||
+                             d.getHospital() != null &&
+                             d.getHospital().getCity() != null &&
+                             d.getHospital().getCity().toLowerCase().contains(city.toLowerCase()))
+                .toList();
     }
 
     public Doctor getDoctor(Long doctorId) {
