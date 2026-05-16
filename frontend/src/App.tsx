@@ -48,7 +48,7 @@ function LegacyRouter() {
 
 function AuthGate() {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <Dashboard /> : <LoginPage />;
+  return isAuthenticated ? <Dashboard /> : <UnifiedLoginPage />;
 }
 
 // ── Inner dashboard (rendered only when authenticated) ──────────────────────
