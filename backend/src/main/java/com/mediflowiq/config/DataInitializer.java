@@ -46,10 +46,18 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.count() > 0) {
-            log.info("[Init] Users already exist — skipping seed");
+        boolean hasUsers    = userRepository.count() > 0;
+        boolean hasHospitals = hospitalRepository.count() > 0;
+        boolean hasDoctors  = doctorRepository.count() > 0;
+        boolean hasPatients = patientAccountRepository.count() > 0;
+
+        if (hasUsers && hasHospitals && hasDoctors && hasPatients) {
+            log.info("[Init] All seed data already present — skipping");
             return;
         }
+
+        log.info("[Init] Partial or empty DB — running seed (users={}, hospitals={}, doctors={}, patients={})",
+                hasUsers, hasHospitals, hasDoctors, hasPatients);
 
         // ── Staff AppUsers ────────────────────────────────────────────────────
 
