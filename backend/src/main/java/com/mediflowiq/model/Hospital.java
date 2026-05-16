@@ -1,11 +1,13 @@
 package com.mediflowiq.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 /**
  * Phase 5 — Multi-hospital support entity.
  * Tracks hospital metadata and current capacity for load-balancing recommendations.
  */
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
 @Table(name = "hospitals")
 public class Hospital {

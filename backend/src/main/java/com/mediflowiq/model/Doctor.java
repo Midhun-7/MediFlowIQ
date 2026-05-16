@@ -1,5 +1,7 @@
 package com.mediflowiq.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 /**
@@ -68,9 +70,11 @@ public class Doctor {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hospital_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Hospital hospital;
 
     /** Link to the AppUser so this doctor can log in */
+    @JsonIgnore   // never expose login credentials or Hibernate proxy to the patient API
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "app_user_id", unique = true)
     private AppUser appUser;

@@ -1,8 +1,11 @@
 package com.mediflowiq.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
 @Table(name = "app_users",
        uniqueConstraints = { @UniqueConstraint(columnNames = "username") })
@@ -15,6 +18,7 @@ public class AppUser {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
+    @JsonIgnore  // never expose BCrypt hash in API responses
     @Column(nullable = false)
     private String password;   // BCrypt hash
 
