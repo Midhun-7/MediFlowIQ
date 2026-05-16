@@ -74,7 +74,25 @@ public class AppointmentService {
         appt.setCurrency("INR");
         Appointment saved = appointmentRepo.save(appt);
 
-        // Create Razorpay order
+        // ── Dev mode: skip Razorpay when using placeholder keys ──────────────
+        if (razorpayKeyId.startsWith("rzp_test_placeholder") || razorpayKeyId.isBlank()) {
+            String mockOrderId = "mock_order_" + saved.getId() + "_" + System.currentTimeMillis();
+            saved.setRazorpayOrderId(mockOrderId);
+            appointmentRepo.save(saved);
+            log.warn("[Razorpay] PLACEHOLDER keys detected — returning mock order (dev mode)");
+            return Map.of(
+                    "appointmentId",  saved.getId(),
+                    "orderId",        mockOrderId,
+                    "amount",         feePaise,
+                    "currency",       "INR",
+                    "keyId",          "mock",
+                    "doctorName",     doctor.getName(),
+                    "hospitalName",   doctor.getHospital() != null ? doctor.getHospital().getName() : "",
+                    "mockMode",       true
+            );
+        }
+
+        // Create Razorpay order (real keys)
         try {
             RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
             JSONObject orderRequest = new JSONObject();
@@ -102,6 +120,7 @@ public class AppointmentService {
             log.error("[Razorpay] Order creation failed: {}", e.getMessage());
             throw new RuntimeException("Payment gateway error. Please try again.");
         }
+
     }
 
     /**
@@ -113,13 +132,18 @@ public class AppointmentService {
         Appointment appt = appointmentRepo.findById(appointmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
 
-        String expected = hmacSha256(
-                req.getRazorpayOrderId() + "|" + req.getRazorpayPaymentId(),
-                razorpayKeySecret
-        );
+        // Dev mode: skip real signature verification for mock orders
+        boolean isMock = appt.getRazorpayOrderId() != null
+                && appt.getRazorpayOrderId().startsWith("mock_order_");
 
-        if (!expected.equals(req.getRazorpaySignature())) {
-            throw new IllegalArgumentException("Payment verification failed — signature mismatch");
+        if (!isMock) {
+            String expected = hmacSha256(
+                    req.getRazorpayOrderId() + "|" + req.getRazorpayPaymentId(),
+                    razorpayKeySecret
+            );
+            if (!expected.equals(req.getRazorpaySignature())) {
+                throw new IllegalArgumentException("Payment verification failed — signature mismatch");
+            }
         }
 
         appt.setStatus(Appointment.Status.CONFIRMED);
@@ -137,6 +161,7 @@ public class AppointmentService {
 
         log.info("[Payment] Appointment {} confirmed, paymentId={}", appointmentId, req.getRazorpayPaymentId());
         return Map.of("status", "CONFIRMED", "appointmentId", appt.getId());
+
     }
 
     // ── HMAC-SHA256 helper ────────────────────────────────────────────────────

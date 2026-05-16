@@ -30,15 +30,15 @@ public class PatientPortalService {
         PatientAccount patient = getPatient(patientId);
         List<Condition> activeConditions = conditionRepo.findByPatientAccountIdAndActiveTrue(patientId);
         List<Prescription> activePrescriptions = prescriptionRepo
-                .findByPatientAccountIdAndStatus(patientId, Prescription.Status.ACTIVE);
+                .findByPatientAccountIdAndStatusWithDetails(patientId, Prescription.Status.ACTIVE);
         List<Appointment> upcomingAppointments = appointmentRepo
-                .findByPatientAccountIdOrderByScheduledAtDesc(patientId)
+                .findByPatientAccountIdWithDetails(patientId)
                 .stream()
                 .filter(a -> a.getStatus() == Appointment.Status.CONFIRMED)
                 .limit(3)
                 .toList();
         List<MedicalRecord> recentHistory = medicalRecordRepo
-                .findByPatientAccountIdOrderByVisitDateDesc(patientId)
+                .findByPatientAccountIdWithDetails(patientId)
                 .stream().limit(5).toList();
 
         return Map.of(
@@ -52,7 +52,7 @@ public class PatientPortalService {
     }
 
     public List<MedicalRecord> getMedicalHistory(Long patientId) {
-        return medicalRecordRepo.findByPatientAccountIdOrderByVisitDateDesc(patientId);
+        return medicalRecordRepo.findByPatientAccountIdWithDetails(patientId);
     }
 
     public List<Condition> getConditions(Long patientId) {
@@ -60,10 +60,10 @@ public class PatientPortalService {
     }
 
     public List<Prescription> getPrescriptions(Long patientId) {
-        return prescriptionRepo.findByPatientAccountIdOrderByPrescribedDateDesc(patientId);
+        return prescriptionRepo.findByPatientAccountIdWithDetails(patientId);
     }
 
     public List<Appointment> getMyAppointments(Long patientId) {
-        return appointmentRepo.findByPatientAccountIdOrderByScheduledAtDesc(patientId);
+        return appointmentRepo.findByPatientAccountIdWithDetails(patientId);
     }
 }
