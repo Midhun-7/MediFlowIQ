@@ -2,6 +2,7 @@ package com.mediflowiq.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -21,7 +22,7 @@ public class Appointment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonIgnore   // avoid circular: patient → appointments → patient
+    @JsonIgnoreProperties({"appointments", "password", "medicalRecords", "conditions", "prescriptions", "hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "patient_account_id", nullable = false)
     private PatientAccount patientAccount;
@@ -110,4 +111,24 @@ public class Appointment {
 
     public LocalDateTime getCreatedAt()                         { return createdAt; }
     public void setCreatedAt(LocalDateTime d)                   { this.createdAt = d; }
+
+    @JsonProperty("patientName")
+    public String getPatientName() {
+        return patientAccount != null ? patientAccount.getFullName() : null;
+    }
+
+    @JsonProperty("patientEmail")
+    public String getPatientEmail() {
+        return patientAccount != null ? patientAccount.getEmail() : null;
+    }
+
+    @JsonProperty("patientPhone")
+    public String getPatientPhone() {
+        return patientAccount != null ? patientAccount.getPhone() : null;
+    }
+
+    @JsonProperty("patientAccountId")
+    public Long getPatientAccountId() {
+        return patientAccount != null ? patientAccount.getId() : null;
+    }
 }

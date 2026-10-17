@@ -17,7 +17,8 @@ public class CreatePrescriptionRequest {
 
     private String specialInstructions;
 
-    @NotNull
+    private Long appointmentId;
+
     private List<MedicationItem> medications;
 
     public static class MedicationItem {
@@ -47,6 +48,8 @@ public class CreatePrescriptionRequest {
     public void setValidUntil(String v)             { this.validUntil = v; }
     public String getSpecialInstructions()          { return specialInstructions; }
     public void setSpecialInstructions(String si)   { this.specialInstructions = si; }
+    public Long getAppointmentId()                  { return appointmentId; }
+    public void setAppointmentId(Long id)           { this.appointmentId = id; }
     public List<MedicationItem> getMedications()    { return medications; }
     public void setMedications(List<MedicationItem> m){ this.medications = m; }
 }

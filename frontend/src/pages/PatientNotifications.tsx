@@ -52,7 +52,9 @@ export const PatientNotifications: React.FC = () => {
             <div>
               <div style={{ fontSize: '0.8rem', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>My Queue Position</div>
               <div style={{ fontSize: '3.5rem', fontWeight: 800, lineHeight: 1 }}>#{queue.position}</div>
-              <div style={{ marginTop: '0.5rem', opacity: 0.9 }}>Dr. {queue.doctorName}</div>
+              <div style={{ marginTop: '0.5rem', opacity: 0.9 }}>
+                {queue.doctorName?.startsWith('Dr.') ? queue.doctorName : `Dr. ${queue.doctorName}`}
+              </div>
               <div style={{ fontSize: '0.85rem', opacity: 0.8, marginTop: '0.25rem' }}>Est. wait: ~{(queue.position - 1) * 15} minutes</div>
             </div>
             <div style={{ textAlign: 'right' }}>

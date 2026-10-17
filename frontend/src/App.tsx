@@ -16,7 +16,8 @@ import { MyBookings } from './pages/MyBookings';
 import { PatientNotifications } from './pages/PatientNotifications';
 import { PatientMedicalHistory } from './pages/PatientMedicalHistory';
 import { DoctorPrescriptionForm } from './pages/DoctorPrescriptionForm';
-import LoginPage from './pages/LoginPage';
+import { DoctorDashboard } from './pages/DoctorDashboard';
+
 import AdminPanel from './pages/AdminPanel';
 import DriverPortal from './pages/DriverPortal';
 import PatientRegistrationForm from './components/PatientRegistrationForm';
@@ -337,7 +338,9 @@ export default function App() {
           <Route path="/patient/book/:doctorId" element={<BookingPage />} />
           <Route path="/patient/bookings"      element={<MyBookings />} />
           <Route path="/patient/notifications" element={<PatientNotifications />} />
-          {/* Doctor prescription form (staff dashboard embeds this) */}
+          {/* Doctor dashboard — today's appointments, mark attended, write prescriptions */}
+          <Route path="/doctor/dashboard"      element={<DoctorDashboard />} />
+          {/* Doctor prescription form (also reachable from Doctor Dashboard) */}
           <Route path="/doctor/prescriptions"  element={<DoctorPrescriptionForm />} />
           {/* Legacy staff portal — all other paths */}
           <Route path="*" element={<LegacyRouter />} />

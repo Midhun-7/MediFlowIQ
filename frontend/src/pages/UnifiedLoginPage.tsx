@@ -47,7 +47,9 @@ export const UnifiedLoginPage: React.FC = () => {
       } else {
         // Staff/Doctor/Admin auth — pass credentials to AuthContext.login (handles API + storage)
         await staffLoginCtx({ username: identifier, password, ...(isDoctor ? { nmcUid } : {}) });
-        navigate('/');
+        // DOCTOR users go to the Doctor Dashboard; others stay on the staff portal root
+        navigate(isDoctor ? '/doctor/dashboard' : '/');
+
       }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Login failed');

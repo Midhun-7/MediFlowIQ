@@ -10,4 +10,7 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     List<Doctor> findByHospitalId(Long hospitalId);
     List<Doctor> findBySpecialtyContainingIgnoreCase(String specialty);
     Optional<Doctor> findByAppUserId(Long appUserId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT d FROM Doctor d WHERE d.appUser.username = :username")
+    Optional<Doctor> findByAppUserUsername(@org.springframework.data.repository.query.Param("username") String username);
 }

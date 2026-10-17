@@ -115,6 +115,9 @@ public class SecurityConfig {
 
                 // ── Phase 6: Patient portal data (authenticated) ─────────
                 .requestMatchers("/api/patient/**").permitAll()  // patientId in path; JWT validated by filter
+                // Appointment creation & payment verification are public (patient JWT handled by filter).
+                // PATCH /api/appointments/{id}/complete and GET /api/appointments?doctorId=...
+                // are secured via @PreAuthorize on the controller methods.
                 .requestMatchers("/api/appointments/**").permitAll()
 
                 // ── Phase 6: Doctor prescription writing ─────────────────

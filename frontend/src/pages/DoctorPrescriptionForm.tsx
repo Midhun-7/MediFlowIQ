@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE } from '../services/api';
 
 interface MedItem { medicationName: string; dosage: string; frequency: string; durationDays: string; instructions: string; }
@@ -8,11 +8,29 @@ const emptyMed = (): MedItem => ({ medicationName: '', dosage: '', frequency: ''
 
 export const DoctorPrescriptionForm: React.FC = () => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token') ?? '';
+  const [searchParams] = useSearchParams();
+  const getAccessToken = () => {
+    const raw = localStorage.getItem('mediflowiq_auth');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.accessToken) return parsed.accessToken;
+      } catch { /* ignore */ }
+    }
+    return localStorage.getItem('token') ?? '';
+  };
+  const token = getAccessToken();
   const [patients, setPatients] = useState<any[]>([]);
   const [hospitals, setHospitals] = useState<any[]>([]);
-  const [form, setForm] = useState({ patientAccountId: '', hospitalId: '', validUntil: '', specialInstructions: '' });
+
+  // Pre-fill from query params when navigating from Doctor Dashboard
+  const prePatientId = searchParams.get('patientId') ?? '';
+  const preHospitalId = searchParams.get('hospitalId') ?? '';
+  const preAppointmentId = searchParams.get('appointmentId') ?? '';
+
+  const [form, setForm] = useState({ patientAccountId: prePatientId, hospitalId: preHospitalId, validUntil: '', specialInstructions: '' });
   const [meds, setMeds] = useState<MedItem[]>([emptyMed()]);
+  const [noMedications, setNoMedications] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -31,12 +49,40 @@ export const DoctorPrescriptionForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError('');
     try {
-      const res = await fetch(`${API_BASE}/doctor/prescriptions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...form, patientAccountId: Number(form.patientAccountId), hospitalId: Number(form.hospitalId), medications: meds.map(m => ({ ...m, durationDays: Number(m.durationDays) })) }),
-      });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed to save prescription'); }
+      if (noMedications) {
+        // Complete appointment without issuing prescriptions
+        if (preAppointmentId) {
+          const res = await fetch(`${API_BASE}/appointments/${preAppointmentId}/complete`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error('Failed to complete appointment');
+        }
+      } else {
+        const payload: any = {
+          ...form,
+          validUntil: form.validUntil?.trim() ? form.validUntil.trim() : undefined,
+          patientAccountId: Number(form.patientAccountId),
+          hospitalId: Number(form.hospitalId),
+          appointmentId: preAppointmentId ? Number(preAppointmentId) : undefined,
+          medications: meds.filter(m => m.medicationName.trim() !== '').map(m => ({ ...m, durationDays: Number(m.durationDays) || 0 })),
+        };
+        const res = await fetch(`${API_BASE}/doctor/prescriptions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Failed to save prescription'); }
+
+        // Also ensure appointment is marked completed
+        if (preAppointmentId) {
+          await fetch(`${API_BASE}/appointments/${preAppointmentId}/complete`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+        }
+      }
+
       setSuccess(true);
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
   };
@@ -46,22 +92,52 @@ export const DoctorPrescriptionForm: React.FC = () => {
       <div style={card}>
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <div style={{ fontSize: '3rem' }}>✅</div>
-          <h2 style={{ fontWeight: 700, color: '#0F172A' }}>Prescription Saved!</h2>
-          <p style={{ color: '#64748B' }}>The patient will see it immediately in their portal.</p>
+          <h2 style={{ fontWeight: 700, color: '#0F172A' }}>
+            {noMedications ? 'Consultation Completed!' : 'Prescription Saved & Attended!'}
+          </h2>
+          <p style={{ color: '#64748B', maxWidth: 440, margin: '0.5rem auto 1.5rem' }}>
+            {preAppointmentId
+              ? 'The appointment has been marked as completed and sent to the patient portal in real time.'
+              : 'The prescription has been added to the patient records.'}
+          </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' }}>
+            <button onClick={() => navigate('/doctor/dashboard')} style={primaryBtn}>← Back to Appointments</button>
             <button onClick={() => { setSuccess(false); setForm({ patientAccountId: '', hospitalId: '', validUntil: '', specialInstructions: '' }); setMeds([emptyMed()]); }} style={outlineBtn}>Write Another</button>
-            <button onClick={() => navigate(-1)} style={primaryBtn}>← Back</button>
           </div>
         </div>
       </div>
     </div>
   );
 
+  const selectedPatient = patients.find(p => String(p.id) === String(form.patientAccountId));
+
   return (
     <div style={wrap}>
       <div style={card}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0F172A', marginBottom: '0.25rem' }}>💊 Write Prescription</h1>
-        <p style={{ color: '#64748B', fontSize: '0.875rem', marginBottom: '1.5rem' }}>This prescription will be instantly visible to the patient in their portal.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+            {preAppointmentId ? '🩺 Patient Consultation' : '💊 Write Prescription'}
+          </h1>
+          <button onClick={() => navigate('/doctor/dashboard')} style={outlineBtn}>✕ Cancel</button>
+        </div>
+        <p style={{ color: '#64748B', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+          Record doctor advice, prescribe medications, and complete the visit.
+        </p>
+
+        {selectedPatient && (
+          <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: '1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#0EA5E9', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+              {selectedPatient.fullName?.charAt(0) ?? 'P'}
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.95rem' }}>{selectedPatient.fullName}</div>
+              <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                {selectedPatient.email} {selectedPatient.bloodGroup ? `• Blood Group: ${selectedPatient.bloodGroup}` : ''}
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && <div style={errBox}>⚠️ {error}</div>}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={grid2}>
@@ -79,40 +155,58 @@ export const DoctorPrescriptionForm: React.FC = () => {
                 {hospitals.map((h: any) => <option key={h.id} value={h.id}>{h.name}</option>)}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label style={lbl}>Clinical Notes / Doctor Advice</label>
+            <textarea
+              value={form.specialInstructions}
+              onChange={e => setForm(f => ({ ...f, specialInstructions: e.target.value }))}
+              rows={3}
+              placeholder="e.g. Patient advised bed rest for 2 days. Normal blood pressure. Revisit after 1 week if symptoms persist."
+              style={{ ...inp, resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Routine Checkup toggle */}
+          <div style={{ background: '#F8FAFC', borderRadius: 10, padding: '0.75rem 1rem', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <input
+              type="checkbox"
+              id="noMeds"
+              checked={noMedications}
+              onChange={e => setNoMedications(e.target.checked)}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
+            />
+            <label htmlFor="noMeds" style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+              No medications needed (General checkup / All clear)
+            </label>
+          </div>
+
+          {!noMedications && (
             <div>
-              <label style={lbl}>Valid Until</label>
-              <input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} style={inp} />
-            </div>
-          </div>
-
-          <div>
-            <label style={lbl}>Special Instructions</label>
-            <textarea value={form.specialInstructions} onChange={e => setForm(f => ({ ...f, specialInstructions: e.target.value }))} rows={2} placeholder="e.g. Take Metformin after meals. Avoid alcohol." style={{ ...inp, resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
-          </div>
-
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <label style={{ ...lbl, margin: 0 }}>Medications *</label>
-              <button type="button" onClick={addMed} style={{ ...outlineBtn, fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}>+ Add Medication</button>
-            </div>
-            {meds.map((m, i) => (
-              <div key={i} style={{ background: '#F8FAFC', borderRadius: 12, padding: '1rem', marginBottom: '0.75rem', border: '1px solid #E2E8F0' }}>
-                <div style={grid2}>
-                  <InputF label="Medication Name *" value={m.medicationName} onChange={v => updateMed(i, 'medicationName', v)} required placeholder="e.g. Metformin" />
-                  <InputF label="Dosage *" value={m.dosage} onChange={v => updateMed(i, 'dosage', v)} required placeholder="e.g. 500mg" />
-                  <InputF label="Frequency *" value={m.frequency} onChange={v => updateMed(i, 'frequency', v)} required placeholder="e.g. Twice daily" />
-                  <InputF label="Duration (days)" value={m.durationDays} type="number" onChange={v => updateMed(i, 'durationDays', v)} placeholder="e.g. 90" />
-                  <InputF label="Instructions" value={m.instructions} onChange={v => updateMed(i, 'instructions', v)} placeholder="e.g. Take after meals" />
-                </div>
-                {meds.length > 1 && (
-                  <button type="button" onClick={() => removeMed(i)} style={{ marginTop: '0.5rem', background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>🗑️ Remove</button>
-                )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <label style={{ ...lbl, margin: 0 }}>Medications</label>
+                <button type="button" onClick={addMed} style={{ ...outlineBtn, fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}>+ Add Medication</button>
               </div>
-            ))}
-          </div>
+              {meds.map((m, i) => (
+                <div key={i} style={{ background: '#F8FAFC', borderRadius: 12, padding: '1rem', marginBottom: '0.75rem', border: '1px solid #E2E8F0' }}>
+                  <div style={grid2}>
+                    <InputF label="Medication Name *" value={m.medicationName} onChange={v => updateMed(i, 'medicationName', v)} required={!noMedications} placeholder="e.g. Paracetamol" />
+                    <InputF label="Dosage *" value={m.dosage} onChange={v => updateMed(i, 'dosage', v)} required={!noMedications} placeholder="e.g. 500mg" />
+                    <InputF label="Frequency *" value={m.frequency} onChange={v => updateMed(i, 'frequency', v)} required={!noMedications} placeholder="e.g. Twice daily" />
+                    <InputF label="Duration (days)" value={m.durationDays} type="number" onChange={v => updateMed(i, 'durationDays', v)} placeholder="e.g. 5" />
+                    <InputF label="Instructions" value={m.instructions} onChange={v => updateMed(i, 'instructions', v)} placeholder="e.g. After food" />
+                  </div>
+                  {meds.length > 1 && (
+                    <button type="button" onClick={() => removeMed(i)} style={{ marginTop: '0.5rem', background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>🗑️ Remove</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
-          <button type="submit" disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.7 : 1, padding: '0.9rem', fontSize: '1rem' }}>
-            {loading ? '🔄 Saving…' : '💊 Save Prescription'}
+          <button type="submit" disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.7 : 1, padding: '0.9rem', fontSize: '1rem', width: '100%' }}>
+            {loading ? '🔄 Completing…' : noMedications ? '✅ Complete Consultation' : '✅ Complete Consultation & Send Prescription'}
           </button>
         </form>
       </div>

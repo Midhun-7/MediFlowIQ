@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { PatientLayout, EmptyState, LoadingSpinner } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
+import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
 import { API_BASE } from '../services/api';
 
 const statusColor = (s: string) => ({ ACTIVE: '#10B981', COMPLETED: '#64748B', EXPIRED: '#EF4444' }[s] ?? '#64748B');
@@ -17,10 +18,21 @@ export const PatientPrescriptions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'EXPIRED'>('ALL');
 
-  useEffect(() => {
+  const fetchPrescriptions = useCallback(() => {
     if (!patient) return;
     fetch(`${API_BASE}/patient/${patient.patientId}/prescriptions`).then(r => r.json()).then(setPrescriptions).finally(() => setLoading(false));
   }, [patient]);
+
+  useEffect(() => { fetchPrescriptions(); }, [fetchPrescriptions]);
+
+  // Re-fetch when a new prescription is pushed via WebSocket
+  usePatientWebSocket(patient?.patientId ?? null, (payload: any) => {
+    if (payload?.type === 'PRESCRIPTION_ADDED') {
+      fetchPrescriptions();
+    }
+  });
+
+
 
   const filtered = filter === 'ALL' ? prescriptions : prescriptions.filter(p => p.status === filter);
   const counts = prescriptions.reduce((acc: any, p: any) => { acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, {});

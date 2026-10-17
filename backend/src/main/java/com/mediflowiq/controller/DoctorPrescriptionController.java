@@ -43,11 +43,7 @@ public class DoctorPrescriptionController {
             @AuthenticationPrincipal UserDetails userDetails) {
 
         // Resolve doctor from logged-in AppUser
-        Long doctorId = doctorRepo.findByAppUserId(
-                        Long.parseLong(userDetails.getUsername().replaceAll("[^0-9]", "")))
-                .map(d -> d.getId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No doctor profile found for this account. Contact admin."));
+        Long doctorId = doctorService.resolveDoctorId(userDetails.getUsername(), null);
 
         Prescription prescription = doctorService.writePrescription(doctorId, req);
         return ResponseEntity.ok(Map.of(

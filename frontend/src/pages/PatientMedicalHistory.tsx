@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { PatientLayout, EmptyState, LoadingSpinner } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
+import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
 import { API_BASE } from '../services/api';
 
 const VISIT_COLORS: Record<string, string> = {
@@ -13,11 +14,22 @@ export const PatientMedicalHistory: React.FC = () => {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchHistory = useCallback(() => {
     if (!patient) return;
     fetch(`${API_BASE}/patient/${patient.patientId}/medical-history`)
       .then(r => r.json()).then(setRecords).finally(() => setLoading(false));
   }, [patient]);
+
+  useEffect(() => { fetchHistory(); }, [fetchHistory]);
+
+  // Re-fetch when a completed appointment may have added a medical record
+  usePatientWebSocket(patient?.patientId ?? null, (payload: any) => {
+    if (payload?.type === 'APPOINTMENT_COMPLETED') {
+      fetchHistory();
+    }
+  });
+
+
 
   return (
     <PatientLayout active="/patient/history" title="📋 Medical History">

@@ -46,6 +46,12 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        // Ensure all doctor AppUsers exist and are linked to their doctor profile
+        ensureDoctorAccount("drsmith", "Doctor@123", "Dr. Sarah Smith", "Sarah", "NMC1001234");
+        ensureDoctorAccount("drkumar", "Doctor@123", "Dr. Rajesh Kumar", "Rajesh", "NMC1005678");
+        ensureDoctorAccount("drsurgeon", "Doctor@123", "Dr. Priya Nair", "Priya", "NMC2009012");
+        ensureDoctorAccount("drneuro", "Doctor@123", "Dr. Arun Menon", "Arun", "NMC3003456");
+
         boolean hasUsers     = userRepository.count() > 0;
         boolean hasHospitals = hospitalRepository.count() > 0;
         boolean hasDoctors   = doctorRepository.count() > 0;
@@ -329,5 +335,29 @@ public class DataInitializer implements CommandLineRunner {
         log.info("[Init]   Patient logins: midhun@example.com / Patient@123");
         log.info("[Init]   Doctor logins:  drsmith / Doctor@123 (NMC: NMC1001234)");
         log.info("[Init] ═══════════════════════════════════════════════════");
+    }
+
+    private void ensureDoctorAccount(String username, String rawPassword, String fullName, String nameMatch, String nmcUid) {
+        AppUser user = userRepository.findByUsername(username).orElseGet(() -> {
+            AppUser u = new AppUser(username, passwordEncoder.encode(rawPassword), fullName, Role.DOCTOR);
+            return userRepository.save(u);
+        });
+        doctorRepository.findAll().stream()
+                .filter(d -> d.getName() != null && d.getName().contains(nameMatch))
+                .findFirst()
+                .ifPresent(d -> {
+                    boolean changed = false;
+                    if (d.getAppUser() == null) {
+                        d.setAppUser(user);
+                        changed = true;
+                    }
+                    if (d.getNmcUid() == null) {
+                        d.setNmcUid(nmcUid);
+                        changed = true;
+                    }
+                    if (changed) {
+                        doctorRepository.save(d);
+                    }
+                });
     }
 }

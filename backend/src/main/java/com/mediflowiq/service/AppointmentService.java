@@ -19,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,6 +31,7 @@ import java.util.Map;
  * Flow:
  *  1. createAppointment()   → saves PENDING_PAYMENT appointment, creates Razorpay order
  *  2. verifyPayment()       → verifies HMAC-SHA256 signature, marks CONFIRMED, notifies via WS
+ *  3. completeAppointment() → marks COMPLETED (Doctor/Admin only), notifies patient via WS
  */
 @Service
 public class AppointmentService {
@@ -46,6 +49,7 @@ public class AppointmentService {
     @Autowired private DoctorRepository doctorRepo;
     @Autowired private HospitalRepository hospitalRepo;
     @Autowired private AppointmentRepository appointmentRepo;
+    @Autowired private MedicalRecordRepository medicalRecordRepo;
     @Autowired private SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -162,6 +166,65 @@ public class AppointmentService {
         log.info("[Payment] Appointment {} confirmed, paymentId={}", appointmentId, req.getRazorpayPaymentId());
         return Map.of("status", "CONFIRMED", "appointmentId", appt.getId());
 
+    }
+
+    /**
+     * Marks an appointment as COMPLETED and notifies the patient via WebSocket.
+     * Requires DOCTOR or ADMIN role (enforced at controller level via @PreAuthorize).
+     */
+    @Transactional
+    public Map<String, Object> completeAppointment(Long appointmentId) {
+        Appointment appt = appointmentRepo.findById(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Appointment not found: " + appointmentId));
+
+        appt.setStatus(Appointment.Status.COMPLETED);
+        appointmentRepo.save(appt);
+
+        // Record consultation in patient's medical history timeline
+        MedicalRecord record = new MedicalRecord();
+        record.setPatientAccount(appt.getPatientAccount());
+        record.setDoctor(appt.getDoctor());
+        record.setHospital(appt.getHospital());
+        record.setVisitDate(LocalDateTime.now());
+        record.setVisitType(MedicalRecord.VisitType.CONSULTATION);
+        record.setDiagnosis("Consultation with Dr. " + (appt.getDoctor() != null ? appt.getDoctor().getName() : "Doctor")
+                + " (" + (appt.getDoctor() != null ? appt.getDoctor().getSpecialty() : "General") + ")");
+        record.setNotes("Appointment #" + appt.getId() + " attended and completed.");
+        medicalRecordRepo.save(record);
+
+        // Push real-time notification to the patient's WS channel
+        messagingTemplate.convertAndSend(
+                "/topic/patient/" + appt.getPatientAccount().getId(),
+                Map.of("type",          "APPOINTMENT_COMPLETED",
+                       "message",       "Your appointment with Dr. " + (appt.getDoctor() != null ? appt.getDoctor().getName() : "")
+                                        + " has been completed.",
+                       "appointmentId", appt.getId())
+        );
+
+        log.info("[Appointment] Appointment {} marked COMPLETED and recorded in medical history", appointmentId);
+        return Map.of("status", "COMPLETED", "appointmentId", appt.getId());
+    }
+
+    /**
+     * Returns appointments for the given doctor (or all doctors if doctorId is null/0).
+     * If todayOnly=true, only appointments scheduled for today (midnight-to-midnight) are returned.
+     */
+    public List<Appointment> getDoctorAppointments(Long doctorId, boolean todayOnly) {
+        if (doctorId == null || doctorId <= 0) {
+            if (todayOnly) {
+                LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+                LocalDateTime endOfDay   = startOfDay.plusDays(1);
+                return appointmentRepo.findAllTodayWithDetails(startOfDay, endOfDay);
+            }
+            return appointmentRepo.findAllWithDetails();
+        }
+
+        if (todayOnly) {
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+            LocalDateTime endOfDay   = startOfDay.plusDays(1);
+            return appointmentRepo.findTodayByDoctorId(doctorId, startOfDay, endOfDay);
+        }
+        return appointmentRepo.findByDoctorIdOrderByScheduledAtAsc(doctorId);
     }
 
     // ── HMAC-SHA256 helper ────────────────────────────────────────────────────

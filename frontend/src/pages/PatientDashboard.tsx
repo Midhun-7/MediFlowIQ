@@ -140,13 +140,22 @@ export const PatientDashboard: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchDashboard = React.useCallback(() => {
     if (!patient) return;
     fetch(`${API_BASE}/patient/${patient.patientId}/dashboard`)
       .then(r => r.json())
       .then(setData)
       .finally(() => setLoading(false));
   }, [patient]);
+
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  // Re-fetch when a relevant WS event arrives (appointment completed or prescription added)
+  usePatientWebSocket(patient?.patientId ?? null, (payload: any) => {
+    if (payload?.type === 'APPOINTMENT_COMPLETED' || payload?.type === 'PRESCRIPTION_ADDED') {
+      fetchDashboard();
+    }
+  });
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';

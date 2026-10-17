@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { PatientLayout, LoadingSpinner, EmptyState } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
+import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
 import { API_BASE } from '../services/api';
 
 const statusColors: Record<string, [string, string]> = {
@@ -15,11 +16,21 @@ export const MyBookings: React.FC = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchAppointments = useCallback(() => {
     if (!patient) return;
     fetch(`${API_BASE}/patient/${patient.patientId}/appointments`)
       .then(r => r.json()).then(setAppointments).finally(() => setLoading(false));
   }, [patient]);
+
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+
+  // Re-fetch on relevant WS events so status updates reflect immediately
+  usePatientWebSocket(patient?.patientId ?? null, (payload: any) => {
+    if (payload?.type === 'APPOINTMENT_COMPLETED' || payload?.type === 'APPOINTMENT_CONFIRMED') {
+      fetchAppointments();
+    }
+  });
+
 
   return (
     <PatientLayout active="/patient/bookings" title="📅 My Bookings">
