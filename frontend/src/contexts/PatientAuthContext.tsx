@@ -26,8 +26,14 @@ export const usePatientAuth = () => {
 export const PatientAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('patient_token'));
   const [patient, setPatient] = useState<PatientUser | null>(() => {
-    const raw = localStorage.getItem('patient_data');
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const raw = localStorage.getItem('patient_data');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      localStorage.removeItem('patient_data');
+      localStorage.removeItem('patient_token');
+      return null;
+    }
   });
 
   const login = useCallback((newToken: string, patientData: PatientUser) => {

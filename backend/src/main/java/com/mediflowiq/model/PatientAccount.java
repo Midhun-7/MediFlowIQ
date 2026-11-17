@@ -1,5 +1,6 @@
 package com.mediflowiq.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ public class PatientAccount {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password; // BCrypt hash
 

@@ -114,7 +114,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/ambulances/*/location").permitAll()
 
                 // ── Phase 6: Patient portal data (authenticated) ─────────
-                .requestMatchers("/api/patient/**").permitAll()  // patientId in path; JWT validated by filter
+                .requestMatchers("/api/patient/**").authenticated()
+
                 // Appointment creation & payment verification are public (patient JWT handled by filter).
                 // PATCH /api/appointments/{id}/complete and GET /api/appointments?doctorId=...
                 // are secured via @PreAuthorize on the controller methods.
@@ -148,8 +149,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
 
-            // Allow H2 console in frames (dev convenience)
-            .headers(headers -> headers.frameOptions(fo -> fo.disable()))
+            // Restrict frames to same-origin to prevent clickjacking
+            .headers(headers -> headers.frameOptions(fo -> fo.sameOrigin()))
 
             // Register JWT filter before the username/password filter
             .authenticationProvider(authenticationProvider())

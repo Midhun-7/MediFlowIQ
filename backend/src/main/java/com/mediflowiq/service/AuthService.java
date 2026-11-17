@@ -44,8 +44,15 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, String ipAddress) {
-        Authentication auth = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+        Authentication auth;
+        try {
+            auth = authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+        } catch (org.springframework.security.core.AuthenticationException ex) {
+            auditLogRepository.save(new AuditLog(
+                    request.getUsername(), "USER_LOGIN_FAILED", "Invalid credentials", ipAddress));
+            throw ex;
+        }
 
         SecurityContextHolder.getContext().setAuthentication(auth);
 
@@ -112,6 +119,21 @@ public class AuthService {
 
         userRepository.save(user);
 
+        // Auto-provision Doctor profile if role is DOCTOR
+        if (role == Role.DOCTOR) {
+            String defaultNmc = "NMC" + (System.currentTimeMillis() % 10000000);
+            Doctor doctor = new Doctor();
+            doctor.setName(user.getFullName());
+            doctor.setSpecialty("General Physician");
+            doctor.setQualifications("MBBS");
+            doctor.setYearsOfExperience(5);
+            doctor.setConsultationFee(500);
+            doctor.setNmcUid(defaultNmc);
+            doctor.setAppUser(user);
+            doctorRepository.save(doctor);
+            log.info("[Auth] Auto-created Doctor record with NMC UID '{}' for doctor '{}'", defaultNmc, user.getUsername());
+        }
+
         auditLogRepository.save(new AuditLog(
                 actorUsername, "USER_REGISTERED",
                 "Created user " + request.getUsername() + " with role " + role,
@@ -124,12 +146,16 @@ public class AuthService {
     // ── Token Refresh ──────────────────────────────────────────────────────
 
     public AuthResponse refresh(String refreshToken, String ipAddress) {
-        if (!jwtUtils.validateToken(refreshToken)) {
+        if (!jwtUtils.validateToken(refreshToken) || !jwtUtils.isRefreshToken(refreshToken)) {
             throw new IllegalArgumentException("Invalid or expired refresh token");
         }
         String username = jwtUtils.getUsernameFromToken(refreshToken);
         AppUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.isEnabled()) {
+            throw new IllegalArgumentException("Account is disabled");
+        }
 
         String newAccess  = jwtUtils.generateTokenFromUsername(username);
         String newRefresh = jwtUtils.generateRefreshToken(username);

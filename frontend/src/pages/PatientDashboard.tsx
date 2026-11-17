@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
 import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
 import { API_BASE } from '../services/api';
+import { EmptyState } from '../components/EmptyState';
 
 // ── Sidebar layout shared across all patient pages ─────────────────────────
 
@@ -126,7 +127,7 @@ const sidebarStyles: Record<string, React.CSSProperties> = {
 export const PatientLayout: React.FC<{ children: React.ReactNode; active: string; title?: string }> = ({ children, active, title }) => (
   <div style={{ display: 'flex', minHeight: '100vh', background: '#F8F9FF', fontFamily: "'Inter', sans-serif" }}>
     <PatientSidebar active={active} />
-    <main style={{ marginLeft: '240px', flex: 1, padding: '2rem', minHeight: '100vh' }}>
+    <main style={{ marginLeft: '240px', flex: 1, padding: '2rem', minHeight: '100vh', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       {title && <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0F172A', marginBottom: '1.5rem' }}>{title}</h1>}
       {children}
     </main>
@@ -198,7 +199,7 @@ export const PatientDashboard: React.FC = () => {
         <div style={dash.section}>
           <h2 style={dash.sectionTitle}>🩺 Current Conditions</h2>
           {conditions.length === 0
-            ? <EmptyState msg="No active conditions on record" />
+            ? <EmptyState msg="No active conditions on record" compact />
             : conditions.map((c: any) => (
                 <div key={c.id} style={dash.condCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -223,7 +224,7 @@ export const PatientDashboard: React.FC = () => {
         <div style={dash.section}>
           <h2 style={dash.sectionTitle}>📋 Recent Medical History</h2>
           {history.length === 0
-            ? <EmptyState msg="No medical records found" />
+            ? <EmptyState msg="No medical records found" compact />
             : history.map((r: any) => (
                 <div key={r.id} style={dash.timelineItem}>
                   <div style={{ ...dash.timelineDot, background: visitTypeColor(r.visitType) }} />
@@ -317,8 +318,4 @@ export const LoadingSpinner: React.FC = () => (
   </div>
 );
 
-export const EmptyState: React.FC<{ msg: string }> = ({ msg }) => (
-  <div style={{ textAlign: 'center', padding: '2rem', color: '#94A3B8', fontSize: '0.875rem' }}>
-    📭 {msg}
-  </div>
-);
+export { EmptyState } from '../components/EmptyState';

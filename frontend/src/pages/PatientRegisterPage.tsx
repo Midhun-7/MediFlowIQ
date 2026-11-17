@@ -115,7 +115,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#BE123C', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem',
   },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' },
+  grid2: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' },
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
   label: { fontSize: '0.85rem', fontWeight: 600, color: '#374151' },
   input: {

@@ -4,7 +4,7 @@ import type { QueueEntry, QueueStats, UserRole, AppNotification } from './types'
 import { getQueue, getStats, getNotificationHistory } from './services/api';
 import { connectWebSocket, disconnectWebSocket } from './services/socket';
 import { useAuth } from './contexts/AuthContext';
-import { PatientAuthProvider } from './contexts/PatientAuthContext';
+import { PatientAuthProvider, usePatientAuth } from './contexts/PatientAuthContext';
 // Phase 6 — Patient portal pages
 import { UnifiedLoginPage } from './pages/UnifiedLoginPage';
 import { PatientRegisterPage } from './pages/PatientRegisterPage';
@@ -49,6 +49,12 @@ function LegacyRouter() {
 
 function AuthGate() {
   const { isAuthenticated } = useAuth();
+  const { isAuthenticated: isPatientAuth } = usePatientAuth();
+
+  if (isPatientAuth) {
+    return <PatientDashboard />;
+  }
+
   return isAuthenticated ? <Dashboard /> : <UnifiedLoginPage />;
 }
 

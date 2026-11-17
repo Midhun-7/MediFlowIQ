@@ -39,15 +39,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = extractToken(request);
 
         if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
-            String username = jwtUtils.getUsernameFromToken(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            // Defend against refresh tokens being supplied as access tokens
+            if (!jwtUtils.isAccessToken(token)) {
+                log.warn("[JWT Filter] Attempt to use non-access token for request URI: {}", request.getRequestURI());
+            } else {
+                try {
+                    String username = jwtUtils.getUsernameFromToken(token);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    if (userDetails.isEnabled()) {
+                        UsernamePasswordAuthenticationToken auth =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            log.debug("[JWT Filter] Authenticated user: {}", username);
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                        log.debug("[JWT Filter] Authenticated user: {}", username);
+                    }
+                } catch (Exception ex) {
+                    log.debug("[JWT Filter] Failed to set user authentication: {}", ex.getMessage());
+                    SecurityContextHolder.clearContext();
+                }
+            }
         }
 
         filterChain.doFilter(request, response);
