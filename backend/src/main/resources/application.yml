@@ -6,12 +6,12 @@ spring:
     name: mediflowiq
 
   # ─────────────────────────────────────────────
-  # PostgreSQL Database (Phase 6+)
+  # PostgreSQL Database (Local Homebrew / Env Override for Prod)
   # ─────────────────────────────────────────────
   datasource:
-    url: jdbc:postgresql://db.zuqizpcptvshptbgptmw.supabase.co:5432/postgres
-    username: postgres
-    password: yJ?!B/@rNjFHB5H
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/mediflowiq}
+    username: ${DB_USERNAME:mediflowiq}
+    password: ${DB_PASSWORD:mediflowiq}
     driver-class-name: org.postgresql.Driver
 
 
