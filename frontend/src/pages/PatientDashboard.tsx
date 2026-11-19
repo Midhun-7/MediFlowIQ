@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
 import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
-import { API_BASE } from '../services/api';
+import { API_BASE, patientFetch } from '../services/api';
 import { EmptyState } from '../components/EmptyState';
 
 // ── Sidebar layout shared across all patient pages ─────────────────────────
@@ -143,9 +143,15 @@ export const PatientDashboard: React.FC = () => {
 
   const fetchDashboard = React.useCallback(() => {
     if (!patient) return;
-    fetch(`${API_BASE}/patient/${patient.patientId}/dashboard`)
-      .then(r => r.json())
+    patientFetch(`${API_BASE}/patient/${patient.patientId}/dashboard`)
+      .then(async r => {
+        if (!r.ok) throw new Error(`Dashboard fetch error: ${r.status}`);
+        return r.json();
+      })
       .then(setData)
+      .catch(err => {
+        console.error('Failed to fetch patient dashboard:', err);
+      })
       .finally(() => setLoading(false));
   }, [patient]);
 

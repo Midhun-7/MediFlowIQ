@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { PatientLayout, EmptyState, LoadingSpinner } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
 import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
-import { API_BASE } from '../services/api';
+import { API_BASE, patientFetch } from '../services/api';
 
 const VISIT_COLORS: Record<string, string> = {
   CONSULTATION: '#0EA5E9', SURGERY: '#EF4444',
@@ -16,8 +16,17 @@ export const PatientMedicalHistory: React.FC = () => {
 
   const fetchHistory = useCallback(() => {
     if (!patient) return;
-    fetch(`${API_BASE}/patient/${patient.patientId}/medical-history`)
-      .then(r => r.json()).then(setRecords).finally(() => setLoading(false));
+    patientFetch(`${API_BASE}/patient/${patient.patientId}/medical-history`)
+      .then(async r => {
+        if (!r.ok) throw new Error(`History fetch error: ${r.status}`);
+        return r.json();
+      })
+      .then(data => setRecords(Array.isArray(data) ? data : []))
+      .catch(err => {
+        console.error('Failed to fetch medical history:', err);
+        setRecords([]);
+      })
+      .finally(() => setLoading(false));
   }, [patient]);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);

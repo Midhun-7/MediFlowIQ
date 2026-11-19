@@ -71,5 +71,37 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
            "LEFT JOIN FETCH a.hospital h " +
            "ORDER BY a.scheduledAt ASC")
     List<Appointment> findAllWithDetails();
+
+    @Query("SELECT COUNT(a) FROM Appointment a " +
+           "WHERE a.doctor.id = :doctorId " +
+           "AND a.status = 'CONFIRMED' " +
+           "AND a.scheduledAt >= :startOfDay " +
+           "AND a.scheduledAt < :endOfDay")
+    long countConfirmedByDoctorOnDate(
+            @Param("doctorId") Long doctorId,
+            @Param("startOfDay") java.time.LocalDateTime startOfDay,
+            @Param("endOfDay") java.time.LocalDateTime endOfDay);
+
+    @Query("SELECT COALESCE(MAX(a.queuePosition), 0) FROM Appointment a " +
+           "WHERE a.doctor.id = :doctorId " +
+           "AND a.scheduledAt >= :startOfDay " +
+           "AND a.scheduledAt < :endOfDay")
+    int findMaxQueuePositionForDoctorOnDate(
+            @Param("doctorId") Long doctorId,
+            @Param("startOfDay") java.time.LocalDateTime startOfDay,
+            @Param("endOfDay") java.time.LocalDateTime endOfDay);
+
+    @Query("SELECT COUNT(a) FROM Appointment a " +
+           "WHERE a.doctor.id = :doctorId " +
+           "AND a.status = 'CONFIRMED' " +
+           "AND a.scheduledAt >= :startOfDay " +
+           "AND a.scheduledAt < :endOfDay " +
+           "AND (a.scheduledAt < :scheduledAt OR (a.scheduledAt = :scheduledAt AND a.id < :currentId))")
+    long countPriorConfirmedAppointments(
+            @Param("doctorId") Long doctorId,
+            @Param("startOfDay") java.time.LocalDateTime startOfDay,
+            @Param("endOfDay") java.time.LocalDateTime endOfDay,
+            @Param("scheduledAt") java.time.LocalDateTime scheduledAt,
+            @Param("currentId") Long currentId);
 }
 

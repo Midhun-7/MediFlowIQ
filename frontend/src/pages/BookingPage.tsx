@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PatientLayout, LoadingSpinner } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
 import { openRazorpayCheckout } from '../services/razorpayService';
-import { API_BASE } from '../services/api';
+import { API_BASE, patientFetch } from '../services/api';
 
 export const BookingPage: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -26,7 +26,7 @@ export const BookingPage: React.FC = () => {
     if (!patient || !scheduledAt) return;
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${API_BASE}/appointments?patientAccountId=${patient.patientId}`, {
+      const res = await patientFetch(`${API_BASE}/appointments?patientAccountId=${patient.patientId}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ doctorId: Number(doctorId), scheduledAt, appointmentType: 'IN_PERSON' }),
       });
@@ -39,7 +39,7 @@ export const BookingPage: React.FC = () => {
 
       // Dev mode: no real Razorpay keys — auto-confirm without payment popup
       if (data.mockMode) {
-        const verifyRes = await fetch(`${API_BASE}/appointments/${data.appointmentId}/verify-payment`, {
+        const verifyRes = await patientFetch(`${API_BASE}/appointments/${data.appointmentId}/verify-payment`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             razorpayOrderId: data.orderId,
@@ -78,16 +78,35 @@ export const BookingPage: React.FC = () => {
     });
   };
 
-  if (success) return (
-    <PatientLayout active="/patient/bookings">
-      <div style={{ textAlign: 'center', padding: '4rem' }}>
-        <div style={{ fontSize: '4rem' }}>✅</div>
-        <h2 style={{ fontWeight: 700, color: '#0F172A' }}>Appointment Confirmed!</h2>
-        <p style={{ color: '#64748B' }}>Your appointment with Dr. {doctor?.name} is booked.</p>
-        <button onClick={() => navigate('/patient/bookings')} style={btnStyle}>View My Bookings</button>
-      </div>
-    </PatientLayout>
-  );
+  if (success) {
+    const docDisplayName = doctor?.name
+      ? (doctor.name.trim().startsWith('Dr.') ? doctor.name.trim() : `Dr. ${doctor.name.trim()}`)
+      : 'your doctor';
+
+    return (
+      <PatientLayout active="/patient/bookings">
+        <div className="flex-1 w-full min-h-[calc(100vh-140px)] flex items-center justify-center p-4">
+          <div className="flex flex-col items-center justify-center text-center p-8 sm:p-12 md:p-14 bg-white rounded-3xl border border-slate-200/90 shadow-sm max-w-lg w-full">
+            <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center text-4xl mb-6 shadow-md shadow-emerald-500/10">
+              ✅
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">
+              Appointment Confirmed!
+            </h2>
+            <p className="text-slate-500 text-sm sm:text-base leading-relaxed mb-6 max-w-sm">
+              Your appointment with <span className="font-semibold text-slate-800">{docDisplayName}</span> is booked.
+            </p>
+            <button
+              onClick={() => navigate('/patient/bookings')}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-bold rounded-xl px-6 py-3 text-sm shadow-md shadow-sky-500/25 transition-all cursor-pointer"
+            >
+              📅 View My Bookings
+            </button>
+          </div>
+        </div>
+      </PatientLayout>
+    );
+  }
 
   const fee = doctor?.consultationFee ?? 0;
   const total = Math.round(fee * 1.18);
@@ -110,7 +129,9 @@ export const BookingPage: React.FC = () => {
         <div style={cardStyle}>
           <h3 style={cardTitle}>Booking Summary</h3>
           {doctor ? <>
-            <div style={{ fontWeight: 700, color: '#0F172A' }}>Dr. {doctor.name}</div>
+            <div style={{ fontWeight: 700, color: '#0F172A' }}>
+              {doctor.name.trim().startsWith('Dr.') ? doctor.name.trim() : `Dr. ${doctor.name.trim()}`}
+            </div>
             <div style={{ color: '#0EA5E9', fontSize: '0.85rem' }}>{doctor.specialty}</div>
             <div style={{ color: '#64748B', fontSize: '0.8rem', marginBottom: '1rem' }}>🏥 {doctor.hospital?.name}</div>
             {scheduledAt && <div style={{ background: '#F0F9FF', borderRadius: 10, padding: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', color: '#0369A1' }}>📅 {new Date(scheduledAt).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })}</div>}

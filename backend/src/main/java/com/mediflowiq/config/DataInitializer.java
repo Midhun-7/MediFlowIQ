@@ -342,22 +342,16 @@ public class DataInitializer implements CommandLineRunner {
             AppUser u = new AppUser(username, passwordEncoder.encode(rawPassword), fullName, Role.DOCTOR);
             return userRepository.save(u);
         });
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        userRepository.save(user);
+
         doctorRepository.findAll().stream()
                 .filter(d -> d.getName() != null && d.getName().contains(nameMatch))
                 .findFirst()
                 .ifPresent(d -> {
-                    boolean changed = false;
-                    if (d.getAppUser() == null) {
-                        d.setAppUser(user);
-                        changed = true;
-                    }
-                    if (d.getNmcUid() == null) {
-                        d.setNmcUid(nmcUid);
-                        changed = true;
-                    }
-                    if (changed) {
-                        doctorRepository.save(d);
-                    }
+                    d.setAppUser(user);
+                    d.setNmcUid(nmcUid);
+                    doctorRepository.save(d);
                 });
     }
 }

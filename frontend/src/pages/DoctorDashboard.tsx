@@ -129,18 +129,41 @@ export const DoctorDashboard: React.FC = () => {
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
-  // Filter appointments based on view mode (Today vs Upcoming from tomorrow onwards)
-  const displayedAppointments = appointments.filter((appt: any) => {
-    if (filterMode === 'upcoming') {
-      if (!appt.scheduledAt) return true;
-      const apptTime = new Date(appt.scheduledAt).getTime();
-      const startOfTomorrow = new Date();
-      startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-      startOfTomorrow.setHours(0, 0, 0, 0);
-      return apptTime >= startOfTomorrow.getTime();
-    }
-    return true;
-  });
+  // Filter and sort appointments based on view mode (Today vs Upcoming)
+  const displayedAppointments = appointments
+    .filter((appt: any) => {
+      if (filterMode === 'upcoming') {
+        if (!appt.scheduledAt) return true;
+        const apptTime = new Date(appt.scheduledAt).getTime();
+        const startOfTomorrow = new Date();
+        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+        startOfTomorrow.setHours(0, 0, 0, 0);
+        return apptTime >= startOfTomorrow.getTime();
+      }
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      // 1. Sort by calendar day first (earliest day first: Nov 20, Nov 21, Nov 25...)
+      const dateA = new Date(a.scheduledAt || 0);
+      const dateB = new Date(b.scheduledAt || 0);
+      const dayA = new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate()).getTime();
+      const dayB = new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate()).getTime();
+      if (dayA !== dayB) {
+        return dayA - dayB;
+      }
+
+      // 2. In any view, show active waiting (CONFIRMED) ahead of COMPLETED
+      if (a.status === 'CONFIRMED' && b.status !== 'CONFIRMED') return -1;
+      if (a.status !== 'CONFIRMED' && b.status === 'CONFIRMED') return 1;
+
+      // 3. Within the same day: strictly order 1st to last (#1, #2, #3...)
+      if (a.queuePosition && b.queuePosition && a.queuePosition !== b.queuePosition) {
+        return a.queuePosition - b.queuePosition;
+      }
+
+      // 4. Fallback to scheduled time of day
+      return dateA.getTime() - dateB.getTime();
+    });
 
   const handleComplete = async (apptId: number) => {
     setCompleting(apptId);
@@ -164,6 +187,10 @@ export const DoctorDashboard: React.FC = () => {
     navigate(`/doctor/prescriptions?patientId=${patientId}&hospitalId=${hospitalId}&appointmentId=${appt.id}`);
   };
 
+  const waitingAppointments = displayedAppointments.filter((a: any) => a.status === 'CONFIRMED');
+  const attendedAppointments = displayedAppointments.filter((a: any) => a.status === 'COMPLETED');
+  const nextWaitingPatient = waitingAppointments.length > 0 ? waitingAppointments[0] : null;
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
       <DoctorSidebar active="/doctor/dashboard" />
@@ -175,9 +202,18 @@ export const DoctorDashboard: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900 m-0">
               {filterMode === 'today' ? "📅 Today's Appointments" : "🗓️ Upcoming Appointments"}
             </h1>
-            <p className="text-xs md:text-sm text-slate-500 mt-1 m-0">
-              {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
+            <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+              <span className="text-xs md:text-sm text-slate-500 font-medium">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                {waitingAppointments.length} in Queue
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                ✓ {attendedAppointments.length} Attended
+              </span>
+            </div>
           </div>
 
           <div className="flex gap-3 items-center flex-wrap">
@@ -244,6 +280,48 @@ export const DoctorDashboard: React.FC = () => {
             </div>
           )}
 
+          {/* Ongoing Queue Status Banner */}
+          {displayedAppointments.length > 0 && (
+            <div className="bg-gradient-to-r from-sky-600 via-sky-700 to-indigo-800 text-white rounded-2xl p-4 md:p-5 mb-5 shadow-sm flex items-center justify-between flex-wrap gap-4 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-2xl border border-white/20">
+                  🩺
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-sky-200">
+                    Live Ongoing Queue
+                  </div>
+                  <div className="text-base font-bold flex items-center gap-2 mt-0.5">
+                    {nextWaitingPatient ? (
+                      <>
+                        <span>Now Calling:</span>
+                        <span className="bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-lg text-xs md:text-sm font-extrabold shadow-sm">
+                          🎫 Token #{nextWaitingPatient.queuePosition}
+                        </span>
+                        <span className="text-sky-100 font-semibold text-sm">
+                          — {nextWaitingPatient.patientName || nextWaitingPatient.patientAccount?.fullName || 'Patient'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-emerald-200 text-sm">
+                        🎉 All appointments attended for this session.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs font-semibold">
+                <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
+                  ⏳ Waiting: <strong className="text-white ml-1">{waitingAppointments.length}</strong>
+                </div>
+                <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
+                  ✓ Attended: <strong className="text-emerald-200 ml-1">{attendedAppointments.length}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Loading */}
           {loading ? (
             <div className="flex justify-center items-center p-16">
@@ -269,16 +347,56 @@ export const DoctorDashboard: React.FC = () => {
                 const patientPhone = appt.patientPhone || appt.patientAccount?.phone || '';
                 const avatarInitial = patientName.replace(/^Patient\s*#?/, '').trim().charAt(0).toUpperCase() || 'P';
 
+                const waitingIndex = waitingAppointments.findIndex((a: any) => a.id === appt.id);
+                const isNextUp = waitingIndex === 0;
+
+                const cardClasses = isNextUp
+                  ? "bg-gradient-to-r from-sky-50/60 to-white rounded-2xl p-5 md:p-6 border-2 border-sky-500 shadow-md ring-2 ring-sky-100 flex justify-between items-center flex-wrap gap-4 transition-all"
+                  : appt.status === 'COMPLETED'
+                  ? "bg-slate-50/70 rounded-2xl p-5 md:p-6 border border-slate-200/80 opacity-90 flex justify-between items-center flex-wrap gap-4 transition-all"
+                  : "bg-white rounded-2xl p-5 md:p-6 border border-slate-200/90 shadow-sm flex justify-between items-center flex-wrap gap-4 transition-all hover:border-slate-300";
+
                 return (
-                  <div key={appt.id} className="bg-white rounded-2xl p-5 md:p-6 border border-slate-200/90 shadow-sm flex justify-between items-center flex-wrap gap-4 transition-all hover:border-slate-300">
+                  <div key={appt.id} className={cardClasses}>
                     {/* Left: patient + time info */}
                     <div className="flex-1 min-w-[240px]">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-base shrink-0 shadow-sm">
-                          {avatarInitial}
+                        <div className="relative">
+                          <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shrink-0 shadow-sm ${
+                            isNextUp
+                              ? 'bg-gradient-to-br from-sky-500 to-indigo-600 ring-2 ring-sky-300'
+                              : 'bg-gradient-to-br from-indigo-500 to-indigo-600'
+                          }`}>
+                            {avatarInitial}
+                          </div>
+                          {appt.queuePosition && (
+                            <span className={`absolute -top-1.5 -right-1.5 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-sm border-2 border-white ${
+                              isNextUp ? 'bg-amber-500' : 'bg-sky-600'
+                            }`}>
+                              #{appt.queuePosition}
+                            </span>
+                          )}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 text-base">{patientName}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900 text-base">{patientName}</span>
+                            {appt.status === 'CONFIRMED' ? (
+                              isNextUp ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+                                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                                  👉 NOW CALLING · Token #{appt.queuePosition || 1}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200">
+                                  ⏳ #{waitingIndex + 1} in queue (Token #{appt.queuePosition})
+                                </span>
+                              )
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                                ✓ Attended (Token #{appt.queuePosition || 1})
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-slate-500 mt-0.5">
                             {patientEmail || (patientPhone ? `📞 ${patientPhone}` : (appt.patientAccountId ? `Patient ID #${appt.patientAccountId}` : ''))}
                           </div>
@@ -313,9 +431,13 @@ export const DoctorDashboard: React.FC = () => {
                         <div className="flex gap-2 items-center flex-wrap justify-end">
                           <button
                             onClick={() => handleWritePrescription(appt)}
-                            className="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-bold rounded-xl px-4 py-2 text-xs md:text-sm shadow-md shadow-sky-500/25 transition-all cursor-pointer flex items-center gap-1.5"
+                            className={
+                              isNextUp
+                                ? "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl px-4 py-2 text-xs md:text-sm shadow-md shadow-emerald-500/25 transition-all cursor-pointer flex items-center gap-1.5"
+                                : "bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-bold rounded-xl px-4 py-2 text-xs md:text-sm shadow-md shadow-sky-500/25 transition-all cursor-pointer flex items-center gap-1.5"
+                            }
                           >
-                            🩺 Attend Patient
+                            🩺 {isNextUp ? 'Attend Next Patient' : 'Attend Patient'}
                           </button>
                           <button
                             disabled={completing === appt.id}

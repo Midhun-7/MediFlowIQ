@@ -19,6 +19,27 @@ if (!BASE_URL) {
 /** Phase 6 — exported for use in patient portal pages that use fetch() directly */
 export const API_BASE = BASE_URL;
 
+/** Helper to retrieve the active patient JWT */
+export const getPatientToken = (): string => {
+  return localStorage.getItem('patient_token') || '';
+};
+
+/** Headers helper with patient JWT attached */
+export const getPatientAuthHeaders = (): Record<string, string> => {
+  const token = getPatientToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+/** Authenticated fetch wrapper for patient portal endpoints */
+export const patientFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const token = getPatientToken();
+  const headers = new Headers(init?.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+};
+
 // ── Axios instance ─────────────────────────────────────────────────────────
 
 const api = axios.create({

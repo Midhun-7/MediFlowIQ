@@ -23,8 +23,8 @@ const ROLE_OPTIONS: RoleOption[] = [
     label: 'Patient',
     icon: '👤',
     tagline: 'Access medical history, prescriptions & book appointments',
-    placeholder: 'Enter your registered email',
-    defaultId: 'midhun@example.com',
+    placeholder: 'Enter patient username or email (e.g. midhun)',
+    defaultId: 'midhun',
     defaultPass: 'Patient@123',
   },
   {
@@ -64,7 +64,7 @@ export const UnifiedLoginPage: React.FC = () => {
   const { login: staffLoginCtx } = useAuth();
 
   const [role, setRole] = useState<Role>('PATIENT');
-  const [identifier, setIdentifier] = useState('midhun@example.com');
+  const [identifier, setIdentifier] = useState('midhun');
   const [password, setPassword] = useState('Patient@123');
   const [nmcUid, setNmcUid] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -303,13 +303,13 @@ export const UnifiedLoginPage: React.FC = () => {
             {/* Identifier Input */}
             <div style={css.formGroup}>
               <label htmlFor="unified-id-input" style={css.formLabel}>
-                {isPatient ? 'Email Address' : 'Staff / Doctor Username'}
+                {isPatient ? 'Patient Username or Email' : 'Staff / Doctor Username'}
               </label>
               <div style={css.inputWrapper}>
-                <span style={css.inputPrefixIcon}>{isPatient ? '✉️' : '👤'}</span>
+                <span style={css.inputPrefixIcon}>👤</span>
                 <input
                   id="unified-id-input"
-                  type={isPatient ? 'email' : 'text'}
+                  type="text"
                   value={identifier}
                   onChange={e => setIdentifier(e.target.value)}
                   placeholder={selectedRole.placeholder}

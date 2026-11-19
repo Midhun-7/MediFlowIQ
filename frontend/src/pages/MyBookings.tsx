@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { PatientLayout, LoadingSpinner, EmptyState } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
 import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
-import { API_BASE } from '../services/api';
+import { API_BASE, patientFetch } from '../services/api';
 
 const statusColors: Record<string, [string, string]> = {
   CONFIRMED:       ['#D1FAE5', '#059669'],
@@ -18,8 +18,21 @@ export const MyBookings: React.FC = () => {
 
   const fetchAppointments = useCallback(() => {
     if (!patient) return;
-    fetch(`${API_BASE}/patient/${patient.patientId}/appointments`)
-      .then(r => r.json()).then(setAppointments).finally(() => setLoading(false));
+    patientFetch(`${API_BASE}/patient/${patient.patientId}/appointments`)
+      .then(async r => {
+        if (!r.ok) {
+          throw new Error(`Failed to load appointments: ${r.status}`);
+        }
+        return r.json();
+      })
+      .then(data => {
+        setAppointments(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error('Failed to fetch appointments:', err);
+        setAppointments([]);
+      })
+      .finally(() => setLoading(false));
   }, [patient]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
@@ -40,7 +53,9 @@ export const MyBookings: React.FC = () => {
           return (
             <div key={a.id} style={{ background: 'white', borderRadius: 14, padding: '1.5rem', marginBottom: '1rem', border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '1rem', marginBottom: '0.25rem' }}>Dr. {a.doctor?.name}</div>
+                <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '1rem', marginBottom: '0.25rem' }}>
+                  {a.doctor?.name ? (a.doctor.name.trim().startsWith('Dr.') ? a.doctor.name.trim() : `Dr. ${a.doctor.name.trim()}`) : 'Doctor'}
+                </div>
                 <div style={{ color: '#0EA5E9', fontSize: '0.85rem', marginBottom: '0.25rem' }}>{a.doctor?.specialty}</div>
                 <div style={{ color: '#64748B', fontSize: '0.8rem' }}>🏥 {a.hospital?.name}</div>
                 <div style={{ color: '#64748B', fontSize: '0.8rem', marginTop: '0.4rem' }}>

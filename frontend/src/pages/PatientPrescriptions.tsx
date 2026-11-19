@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { PatientLayout, EmptyState, LoadingSpinner } from './PatientDashboard';
 import { usePatientAuth } from '../contexts/PatientAuthContext';
 import { usePatientWebSocket } from '../hooks/usePatientWebSocket';
-import { API_BASE } from '../services/api';
+import { API_BASE, patientFetch } from '../services/api';
 
 const statusColor = (s: string) => ({ ACTIVE: '#10B981', COMPLETED: '#64748B', EXPIRED: '#EF4444' }[s] ?? '#64748B');
 
@@ -20,7 +20,17 @@ export const PatientPrescriptions: React.FC = () => {
 
   const fetchPrescriptions = useCallback(() => {
     if (!patient) return;
-    fetch(`${API_BASE}/patient/${patient.patientId}/prescriptions`).then(r => r.json()).then(setPrescriptions).finally(() => setLoading(false));
+    patientFetch(`${API_BASE}/patient/${patient.patientId}/prescriptions`)
+      .then(async r => {
+        if (!r.ok) throw new Error(`Prescriptions fetch error: ${r.status}`);
+        return r.json();
+      })
+      .then(data => setPrescriptions(Array.isArray(data) ? data : []))
+      .catch(err => {
+        console.error('Failed to fetch prescriptions:', err);
+        setPrescriptions([]);
+      })
+      .finally(() => setLoading(false));
   }, [patient]);
 
   useEffect(() => { fetchPrescriptions(); }, [fetchPrescriptions]);

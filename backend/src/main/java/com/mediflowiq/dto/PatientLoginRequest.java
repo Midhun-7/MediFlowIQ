@@ -1,14 +1,13 @@
 package com.mediflowiq.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class PatientLoginRequest {
 
-    @NotBlank @Email
-    private String email;
+    @NotBlank(message = "Username or email is required")
+    private String email; // Supports either username or email address
 
-    @NotBlank
+    @NotBlank(message = "Password is required")
     private String password;
 
     public String getEmail()            { return email; }

@@ -76,6 +76,12 @@ public class AppointmentService {
         appt.setStatus(Appointment.Status.PENDING_PAYMENT);
         appt.setAmountPaise(feePaise);
         appt.setCurrency("INR");
+
+        LocalDateTime startOfDay = appt.getScheduledAt().toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        int maxToken = appointmentRepo.findMaxQueuePositionForDoctorOnDate(doctor.getId(), startOfDay, endOfDay);
+        appt.setQueuePosition(maxToken + 1);
+
         Appointment saved = appointmentRepo.save(appt);
 
         // ── Dev mode: skip Razorpay when using placeholder keys ──────────────
@@ -152,6 +158,14 @@ public class AppointmentService {
 
         appt.setStatus(Appointment.Status.CONFIRMED);
         appt.setRazorpayPaymentId(req.getRazorpayPaymentId());
+
+        if (appt.getQueuePosition() == null && appt.getDoctor() != null && appt.getScheduledAt() != null) {
+            LocalDateTime startOfDay = appt.getScheduledAt().toLocalDate().atStartOfDay();
+            LocalDateTime endOfDay = startOfDay.plusDays(1);
+            int maxToken = appointmentRepo.findMaxQueuePositionForDoctorOnDate(appt.getDoctor().getId(), startOfDay, endOfDay);
+            appt.setQueuePosition(maxToken + 1);
+        }
+
         appointmentRepo.save(appt);
 
         // Real-time notification to patient
@@ -201,6 +215,37 @@ public class AppointmentService {
                        "appointmentId", appt.getId())
         );
 
+        // Live queue progression notification for remaining confirmed patients on this day
+        if (appt.getDoctor() != null && appt.getScheduledAt() != null) {
+            LocalDateTime startOfDay = appt.getScheduledAt().toLocalDate().atStartOfDay();
+            LocalDateTime endOfDay   = startOfDay.plusDays(1);
+            List<Appointment> dayAppts = appointmentRepo.findTodayByDoctorId(appt.getDoctor().getId(), startOfDay, endOfDay);
+
+            List<Appointment> waiting = dayAppts.stream()
+                    .filter(a -> a.getStatus() == Appointment.Status.CONFIRMED && !a.getId().equals(appt.getId()))
+                    .sorted(java.util.Comparator.comparingInt(a -> a.getQueuePosition() != null ? a.getQueuePosition() : 0))
+                    .toList();
+
+            Integer nowServingToken = waiting.isEmpty() ? null : waiting.get(0).getQueuePosition();
+
+            for (int i = 0; i < waiting.size(); i++) {
+                Appointment rem = waiting.get(i);
+                int ahead = i; // 0 means this patient is up next
+                String queueMsg = (ahead == 0)
+                        ? "🎉 You are next in line! Dr. " + appt.getDoctor().getName() + " is ready for your consultation (Token #" + rem.getQueuePosition() + ")."
+                        : "Queue update: Dr. " + appt.getDoctor().getName() + " is currently attending Token #" + nowServingToken + ". You have " + ahead + " patient" + (ahead > 1 ? "s" : "") + " ahead of you.";
+
+                messagingTemplate.convertAndSend(
+                        "/topic/patient/" + rem.getPatientAccount().getId(),
+                        Map.of("type",             "QUEUE_UPDATE",
+                               "message",          queueMsg,
+                               "currentlyServing", nowServingToken != null ? nowServingToken : 0,
+                               "patientsAhead",    ahead,
+                               "token",            rem.getQueuePosition() != null ? rem.getQueuePosition() : 0)
+                );
+            }
+        }
+
         log.info("[Appointment] Appointment {} marked COMPLETED and recorded in medical history", appointmentId);
         return Map.of("status", "COMPLETED", "appointmentId", appt.getId());
     }
@@ -209,22 +254,52 @@ public class AppointmentService {
      * Returns appointments for the given doctor (or all doctors if doctorId is null/0).
      * If todayOnly=true, only appointments scheduled for today (midnight-to-midnight) are returned.
      */
+    @Transactional
     public List<Appointment> getDoctorAppointments(Long doctorId, boolean todayOnly) {
+        List<Appointment> results;
         if (doctorId == null || doctorId <= 0) {
             if (todayOnly) {
                 LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
                 LocalDateTime endOfDay   = startOfDay.plusDays(1);
-                return appointmentRepo.findAllTodayWithDetails(startOfDay, endOfDay);
+                results = appointmentRepo.findAllTodayWithDetails(startOfDay, endOfDay);
+            } else {
+                results = appointmentRepo.findAllWithDetails();
             }
-            return appointmentRepo.findAllWithDetails();
+        } else {
+            if (todayOnly) {
+                LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+                LocalDateTime endOfDay   = startOfDay.plusDays(1);
+                results = appointmentRepo.findTodayByDoctorId(doctorId, startOfDay, endOfDay);
+            } else {
+                results = appointmentRepo.findByDoctorIdOrderByScheduledAtAsc(doctorId);
+            }
         }
 
-        if (todayOnly) {
-            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-            LocalDateTime endOfDay   = startOfDay.plusDays(1);
-            return appointmentRepo.findTodayByDoctorId(doctorId, startOfDay, endOfDay);
+        // Ensure every appointment has a permanent, unique sequential token per doctor per day
+        java.util.Map<String, List<Appointment>> byDoctorAndDate = results.stream()
+                .filter(a -> a.getDoctor() != null && a.getScheduledAt() != null)
+                .collect(java.util.stream.Collectors.groupingBy(a -> a.getDoctor().getId() + "_" + a.getScheduledAt().toLocalDate()));
+
+        for (List<Appointment> dayList : byDoctorAndDate.values()) {
+            dayList.sort(java.util.Comparator.comparingLong(Appointment::getId));
+            java.util.Set<Integer> seen = new java.util.HashSet<>();
+            int nextToken = 1;
+            for (Appointment a : dayList) {
+                if (a.getQueuePosition() == null || seen.contains(a.getQueuePosition())) {
+                    while (seen.contains(nextToken)) {
+                        nextToken++;
+                    }
+                    a.setQueuePosition(nextToken);
+                    appointmentRepo.save(a);
+                }
+                seen.add(a.getQueuePosition());
+                if (a.getQueuePosition() >= nextToken) {
+                    nextToken = a.getQueuePosition() + 1;
+                }
+            }
         }
-        return appointmentRepo.findByDoctorIdOrderByScheduledAtAsc(doctorId);
+
+        return results;
     }
 
     // ── HMAC-SHA256 helper ────────────────────────────────────────────────────

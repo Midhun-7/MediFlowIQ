@@ -60,13 +60,13 @@ export const PatientLoginPage: React.FC = () => {
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Email Address</label>
+            <label style={styles.label}>Username or Email</label>
             <input
               id="patient-email"
-              type="email"
+              type="text"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="e.g. midhun or you@example.com"
               required
               style={styles.input}
               onFocus={e => e.target.style.borderColor = '#0EA5E9'}

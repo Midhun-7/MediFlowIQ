@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,14 +42,18 @@ public class PatientAuthService {
 
     /** Returns a Map with { token, patientId, fullName } */
     public Map<String, Object> login(PatientLoginRequest req) {
-        PatientAccount account = patientRepo.findByEmail(req.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+        String identifier = req.getEmail() != null ? req.getEmail().trim() : "";
+        List<PatientAccount> accounts = patientRepo.findByIdentifier(identifier);
+        if (accounts.isEmpty()) {
+            throw new IllegalArgumentException("Invalid username or password");
+        }
+        PatientAccount account = accounts.get(0);
 
         if (!account.isEnabled()) {
             throw new IllegalArgumentException("Account is disabled");
         }
         if (!passwordEncoder.matches(req.getPassword(), account.getPassword())) {
-            throw new IllegalArgumentException("Invalid email or password");
+            throw new IllegalArgumentException("Invalid username or password");
         }
 
         // Reuse existing JwtUtils — subject is the patient email
